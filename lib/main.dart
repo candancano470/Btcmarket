@@ -50,7 +50,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   bool _hasError = false;
   bool _hasInternet = true;
   int _loadingProgress = 0;
-  late StreamSubscription<List<ConnectivityResult>> _connectivitySub;
+  late StreamSubscription<ConnectivityResult> _connectivitySub;
 
   static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
 
@@ -62,8 +62,8 @@ class _WebViewScreenState extends State<WebViewScreen> {
   }
 
   void _initConnectivity() {
-    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
-      final hasNet = results.any((r) => r != ConnectivityResult.none);
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
+      final hasNet = result != ConnectivityResult.none;
       if (!mounted) return;
       setState(() => _hasInternet = hasNet);
       if (hasNet && _hasError) {
