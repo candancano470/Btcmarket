@@ -1,4 +1,4 @@
-```yaml
+yaml
 workflows:
   android-release:
     name: BTCmarketpro Android Release
@@ -94,4 +94,3 @@ workflows:
         notify:
           success: true
           failure: true
-```
