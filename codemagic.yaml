@@ -32,10 +32,21 @@ workflows:
 
       - name: Generate app icons from logo
         script: |
+          cd $CM_BUILD_DIR
+          echo "Build dir: $CM_BUILD_DIR"
+          ls -la
           pip3 install Pillow
-          python3 << 'EOF'
+          python3 - << 'EOF'
+          import os, sys
           from PIL import Image
-          import os
+
+          build_dir = os.environ.get("CM_BUILD_DIR", ".")
+          logo_path = os.path.join(build_dir, "logo.png")
+          print(f"Looking for logo at: {logo_path}")
+
+          if not os.path.exists(logo_path):
+              print(f"ERROR: logo.png not found at {logo_path}")
+              sys.exit(1)
 
           sizes = {
             "mipmap-mdpi": 48,
@@ -45,10 +56,10 @@ workflows:
             "mipmap-xxxhdpi": 192,
           }
 
-          logo = Image.open("logo.png").convert("RGBA")
+          logo = Image.open(logo_path).convert("RGBA")
 
           for folder, size in sizes.items():
-            path = f"android/app/src/main/res/{folder}"
+            path = os.path.join(build_dir, f"android/app/src/main/res/{folder}")
             os.makedirs(path, exist_ok=True)
             img = logo.resize((size, size), Image.LANCZOS)
             img.save(f"{path}/ic_launcher.png")
@@ -57,13 +68,18 @@ workflows:
           EOF
 
       - name: Generate native splash
-        script: flutter pub run flutter_native_splash:create
+        script: |
+          cd $CM_BUILD_DIR
+          flutter pub run flutter_native_splash:create
 
       - name: Analyze code
-        script: flutter analyze --no-fatal-warnings
+        script: |
+          cd $CM_BUILD_DIR
+          flutter analyze --no-fatal-warnings
 
       - name: Build AAB (Google Play)
         script: |
+          cd $CM_BUILD_DIR
           flutter build appbundle \
             --release \
             --build-name=1.0.0 \
