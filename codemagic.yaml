@@ -88,10 +88,12 @@ workflows:
             --release \
             --build-name=1.0.0 \
             --build-number=$BUILD_NUMBER
+          echo "--- AAB Search ---"
+          find $CM_BUILD_DIR/build -name "*.aab" 2>/dev/null || echo "No AAB found"
 
     artifacts:
-      - build/**/outputs/**/*.aab
-      - build/**/outputs/**/*.apk
+      - build/app/outputs/bundle/release/app-release.aab
+      - build/app/outputs/apk/release/app-release.apk
 
     publishing:
       email:
