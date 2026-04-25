@@ -1,4 +1,3 @@
-yaml
 workflows:
   android-release:
     name: BTCmarketpro Android Release
