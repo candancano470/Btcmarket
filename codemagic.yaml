@@ -72,7 +72,8 @@ workflows:
 
       - name: Create local.properties
         script: |
-          echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/local.properties
+          echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/android/local.properties
+          cat $CM_BUILD_DIR/android/local.properties
 
       - name: Build AAB (Google Play)
         script: |
