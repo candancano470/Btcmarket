@@ -9,7 +9,7 @@ pluginManagement {
         if (flutterSdkPath == null) {
             flutterSdkPath = System.getenv("FLUTTER_ROOT")
         }
-        assert flutterSdkPath != null, "flutter.sdk not set in local.properties and FLUTTER_ROOT not set"
+        assert flutterSdkPath != null, "flutter.sdk not set"
         return flutterSdkPath
     }()
 
