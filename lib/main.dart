@@ -170,7 +170,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   Widget build(BuildContext context) {
     return PopScope(
       canPop: false,
-      onPopInvoked: (didPop) async {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
         if (shouldPop && mounted) {
@@ -273,7 +273,7 @@ class _ErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('logo.png', width: 100, height: 100),
+            Image.asset('assets/logo.png', width: 100, height: 100),
             const SizedBox(height: 24),
             const Text(
               'Sayfa Yüklenemedi',
