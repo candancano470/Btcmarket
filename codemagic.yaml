@@ -75,6 +75,10 @@ workflows:
           cd $CM_BUILD_DIR
           flutter analyze --no-fatal-warnings || true
 
+      - name: Create local.properties
+        script: |
+          echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/local.properties
+
       - name: Build AAB (Google Play)
         script: |
           cd $CM_BUILD_DIR
