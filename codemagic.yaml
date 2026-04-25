@@ -75,6 +75,12 @@ workflows:
           echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/android/local.properties
           cat $CM_BUILD_DIR/android/local.properties
 
+      - name: Debug flutter path
+        script: |
+          echo "FLUTTER_ROOT: $FLUTTER_ROOT"
+          ls $FLUTTER_ROOT/packages/flutter_tools/gradle/
+          cat $CM_BUILD_DIR/android/local.properties
+
       - name: Build AAB (Google Play)
         script: |
           cd $CM_BUILD_DIR
