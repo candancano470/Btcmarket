@@ -47,7 +47,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            if (System.getenv("KEY_STORE_PATH")) {
+                signingConfig signingConfigs.release
+            } else {
+                signingConfig signingConfigs.debug
+            }
             minifyEnabled false
             shrinkResources false
         }
