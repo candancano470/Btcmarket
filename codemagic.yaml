@@ -88,12 +88,22 @@ workflows:
             --release \
             --build-name=1.0.0 \
             --build-number=$BUILD_NUMBER
+
           echo "--- AAB Search ---"
-          find $CM_BUILD_DIR/build -name "*.aab" 2>/dev/null || echo "No AAB found"
+          find $CM_BUILD_DIR -name "*.aab" 2>/dev/null
+
+          AAB=$(find $CM_BUILD_DIR -name "*.aab" | head -1)
+          if [ -z "$AAB" ]; then
+            echo "ERROR: No AAB found!"
+            exit 1
+          fi
+
+          mkdir -p $CM_BUILD_DIR/output
+          cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
+          echo "Copied to: $CM_BUILD_DIR/output/app-release.aab"
 
     artifacts:
-      - build/app/outputs/bundle/release/app-release.aab
-      - build/app/outputs/apk/release/app-release.apk
+      - output/app-release.aab
 
     publishing:
       email:
