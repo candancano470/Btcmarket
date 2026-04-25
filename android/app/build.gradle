@@ -32,8 +32,8 @@ android {
         applicationId "com.btcmorning.btcmarketpro"
         minSdk 21
         targetSdk 35
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
+        versionCode 1
+        versionName "1.0.0"
         multiDexEnabled true
     }
 
