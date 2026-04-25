@@ -81,7 +81,7 @@ workflows:
             --release \
             --build-name=1.0.0 \
             --build-number=$BUILD_NUMBER \
-            --verbose
+            --verbose 2>&1 | tee /tmp/build_log.txt || (cat /tmp/build_log.txt && exit 1)
 
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
