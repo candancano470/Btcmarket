@@ -11,8 +11,6 @@ void main() {
     const SystemUiOverlayStyle(
       statusBarColor: Color(0xFF071330),
       statusBarIconBrightness: Brightness.light,
-      navigationBarColor: Color(0xFF071330),
-      navigationBarIconBrightness: Brightness.light,
     ),
   );
   runApp(const BTCMarketProApp());
@@ -106,12 +104,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
             }
           },
           onNavigationRequest: (request) {
-            // Dış linkleri in-app aç, sitenin kendi linkleri serbestçe geçsin
-            final uri = Uri.parse(request.url);
-            if (uri.host.contains('btcmorning.com')) {
-              return NavigationDecision.navigate;
-            }
-            // Diğer dış linkler de webview içinde açılsın
             return NavigationDecision.navigate;
           },
         ),
@@ -190,26 +182,25 @@ class _WebViewScreenState extends State<WebViewScreen> {
         body: SafeArea(
           child: Stack(
             children: [
-              // ── No Internet Screen ──
               if (!_hasInternet)
                 _NoInternetWidget(onRetry: _reloadPage)
-              // ── Error Screen ──
               else if (_hasError)
                 _ErrorWidget(onRetry: _reloadPage)
-              // ── WebView ──
               else
                 WebViewWidget(controller: _controller),
 
-              // ── Top Progress Bar ──
               if (_isLoading && !_hasError && _hasInternet)
                 Positioned(
                   top: 0,
                   left: 0,
                   right: 0,
                   child: LinearProgressIndicator(
-                    value: _loadingProgress < 100 ? _loadingProgress / 100 : null,
+                    value: _loadingProgress < 100
+                        ? _loadingProgress / 100
+                        : null,
                     backgroundColor: const Color(0xFF071330),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF1A6FFF)),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF1A6FFF)),
                     minHeight: 3,
                   ),
                 ),
@@ -221,7 +212,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
   }
 }
 
-// ── No Internet Widget ──────────────────────────────────────
 class _NoInternetWidget extends StatelessWidget {
   final VoidCallback onRetry;
   const _NoInternetWidget({required this.onRetry});
@@ -234,11 +224,15 @@ class _NoInternetWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded, color: Color(0xFF1A6FFF), size: 80),
+            const Icon(Icons.wifi_off_rounded,
+                color: Color(0xFF1A6FFF), size: 80),
             const SizedBox(height: 24),
             const Text(
               'İnternet Bağlantısı Yok',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             const Text(
@@ -254,8 +248,10 @@ class _NoInternetWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -265,7 +261,6 @@ class _NoInternetWidget extends StatelessWidget {
   }
 }
 
-// ── Error Widget ────────────────────────────────────────────
 class _ErrorWidget extends StatelessWidget {
   final VoidCallback onRetry;
   const _ErrorWidget({required this.onRetry});
@@ -278,11 +273,14 @@ class _ErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/logo.png', width: 100, height: 100),
+            Image.asset('logo.png', width: 100, height: 100),
             const SizedBox(height: 24),
             const Text(
               'Sayfa Yüklenemedi',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             const Text(
@@ -298,8 +296,10 @@ class _ErrorWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
