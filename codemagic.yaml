@@ -80,7 +80,8 @@ workflows:
           flutter build appbundle \
             --release \
             --build-name=1.0.0 \
-            --build-number=$BUILD_NUMBER
+            --build-number=$BUILD_NUMBER \
+            --verbose
 
     artifacts:
       - build/app/outputs/bundle/release/app-release.aab
