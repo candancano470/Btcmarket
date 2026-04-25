@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
 
     environment:
-      flutter: stable
+      flutter: 3.24.5
       java: 17
       android_signing:
         - btcmarketpro_keystore
@@ -62,35 +62,4 @@ workflows:
             img = logo.resize((size, size), Image.LANCZOS)
             img.save(f"{path}/ic_launcher.png")
             img.save(f"{path}/ic_launcher_round.png")
-            print(f"✅ {folder}: {size}x{size}")
-          EOF
-
-      - name: Generate native splash
-        script: |
-          cd $CM_BUILD_DIR
-          flutter pub run flutter_native_splash:create
-
-      - name: Analyze code
-        script: |
-          cd $CM_BUILD_DIR
-          flutter analyze --no-fatal-warnings
-
-      - name: Build AAB (Google Play)
-        script: |
-          cd $CM_BUILD_DIR
-          flutter build appbundle \
-            --release \
-            --build-name=1.0.0 \
-            --build-number=$BUILD_NUMBER
-
-    artifacts:
-      - build/app/outputs/bundle/release/app-release.aab
-      - build/app/outputs/apk/release/app-release.apk
-
-    publishing:
-      email:
-        recipients:
-          - your@email.com
-        notify:
-          success: true
-          failure: true
+            print(f"✅ {folder}:
