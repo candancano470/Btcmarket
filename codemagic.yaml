@@ -40,10 +40,10 @@ workflows:
 
           build_dir = os.environ.get("CM_BUILD_DIR", ".")
           logo_path = os.path.join(build_dir, "assets/logo.png")
-          print(f"Looking for logo at: {logo_path}")
+          print("Looking for logo at: " + logo_path)
 
           if not os.path.exists(logo_path):
-              print(f"ERROR: logo.png not found at {logo_path}")
+              print("ERROR: logo.png not found at " + logo_path)
               sys.exit(1)
 
           sizes = {
@@ -57,9 +57,40 @@ workflows:
           logo = Image.open(logo_path).convert("RGBA")
 
           for folder, size in sizes.items():
-            path = os.path.join(build_dir, f"android/app/src/main/res/{folder}")
+            path = os.path.join(build_dir, "android/app/src/main/res/" + folder)
             os.makedirs(path, exist_ok=True)
             img = logo.resize((size, size), Image.LANCZOS)
-            img.save(f"{path}/ic_launcher.png")
-            img.save(f"{path}/ic_launcher_round.png")
-            print(f"✅ {folder}:
+            img.save(path + "/ic_launcher.png")
+            img.save(path + "/ic_launcher_round.png")
+            print("OK " + folder + ": " + str(size) + "x" + str(size))
+          EOF
+
+      - name: Generate native splash
+        script: |
+          cd $CM_BUILD_DIR
+          flutter pub run flutter_native_splash:create
+
+      - name: Analyze code
+        script: |
+          cd $CM_BUILD_DIR
+          flutter analyze --no-fatal-warnings || true
+
+      - name: Build AAB (Google Play)
+        script: |
+          cd $CM_BUILD_DIR
+          flutter build appbundle \
+            --release \
+            --build-name=1.0.0 \
+            --build-number=$BUILD_NUMBER
+
+    artifacts:
+      - build/app/outputs/bundle/release/app-release.aab
+      - build/app/outputs/apk/release/app-release.apk
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
