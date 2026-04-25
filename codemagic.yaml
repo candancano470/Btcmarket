@@ -5,7 +5,7 @@ workflows:
     instance_type: mac_mini_m2
 
     environment:
-      flutter: 3.19.6
+      flutter: stable
       java: 17
       android_signing:
         - btcmarketpro_keystore
