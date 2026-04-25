@@ -102,8 +102,29 @@ workflows:
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
           echo "Copied to: $CM_BUILD_DIR/output/app-release.aab"
 
+      - name: Build APK (Test)
+        script: |
+          cd $CM_BUILD_DIR
+          flutter build apk \
+            --release \
+            --build-name=1.0.0 \
+            --build-number=$BUILD_NUMBER
+
+          echo "--- APK Search ---"
+          find $CM_BUILD_DIR -name "*.apk" 2>/dev/null
+
+          APK=$(find $CM_BUILD_DIR -name "*.apk" | head -1)
+          if [ -z "$APK" ]; then
+            echo "ERROR: No APK found!"
+            exit 1
+          fi
+
+          cp "$APK" $CM_BUILD_DIR/output/app-release.apk
+          echo "Copied to: $CM_BUILD_DIR/output/app-release.apk"
+
     artifacts:
       - output/app-release.aab
+      - output/app-release.apk
 
     publishing:
       email:
