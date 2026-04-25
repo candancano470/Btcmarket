@@ -65,11 +65,6 @@ workflows:
             print("OK " + folder + ": " + str(size) + "x" + str(size))
           EOF
 
-      - name: Generate native splash
-        script: |
-          cd $CM_BUILD_DIR
-          flutter pub run flutter_native_splash:create
-
       - name: Analyze code
         script: |
           cd $CM_BUILD_DIR
