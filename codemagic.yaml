@@ -33,15 +33,13 @@ workflows:
       - name: Generate app icons from logo
         script: |
           cd $CM_BUILD_DIR
-          echo "Build dir: $CM_BUILD_DIR"
-          ls -la
           pip3 install Pillow
           python3 - << 'EOF'
           import os, sys
           from PIL import Image
 
           build_dir = os.environ.get("CM_BUILD_DIR", ".")
-          logo_path = os.path.join(build_dir, "logo.png")
+          logo_path = os.path.join(build_dir, "assets/logo.png")
           print(f"Looking for logo at: {logo_path}")
 
           if not os.path.exists(logo_path):
