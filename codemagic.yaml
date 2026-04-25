@@ -8,9 +8,9 @@ workflows:
       flutter: 3.19.6
       java: 17
       android_signing:
-        - btcmarketpro_keystore          # Codemagic > App settings > Code signing
+        - btcmarketpro_keystore
       groups:
-        - btcmarketpro_env               # Codemagic > Teams > Global variables
+        - btcmarketpro_env
       vars:
         PACKAGE_NAME: "com.btcmorning.btcmarketpro"
 
@@ -29,6 +29,13 @@ workflows:
 
       - name: Get packages
         script: flutter pub get
+
+      - name: Prepare assets folder
+        script: |
+          mkdir -p assets
+          cp logo.png assets/logo.png
+          echo "✅ logo.png copied to assets/"
+          ls -la assets/
 
       - name: Generate launcher icons
         script: flutter pub run flutter_launcher_icons
@@ -54,7 +61,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - your@email.com              # ← kendi emailini yaz
+          - your@email.com
         notify:
           success: true
           failure: true
