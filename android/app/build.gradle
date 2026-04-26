@@ -12,11 +12,6 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def keystorePath = System.getenv("CM_KEYSTORE_PATH")
-def keystorePassword = System.getenv("CM_KEYSTORE_PASSWORD")
-def keyAlias = System.getenv("CM_KEY_ALIAS")
-def keyPassword = System.getenv("CM_KEY_PASSWORD")
-
 android {
     namespace "com.btcmorning.btcmarketpro"
     compileSdk 35
@@ -41,16 +36,20 @@ android {
 
     signingConfigs {
         release {
-            storeFile keystorePath ? file(keystorePath) : null
-            storePassword keystorePassword
-            keyAlias keyAlias
-            keyPassword keyPassword
+            if (System.getenv("CM_KEYSTORE_PATH")) {
+                storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
+            } else {
+                signingConfig signingConfigs.debug
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig keystorePath ? signingConfigs.release : signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
         }
