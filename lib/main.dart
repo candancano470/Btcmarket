@@ -22,7 +22,7 @@ class BTCMarketProApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'BTCmarketpro',
+      title: 'BTCMarketPro',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
@@ -37,9 +37,6 @@ class BTCMarketProApp extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// APP ROOT
-// ─────────────────────────────────────────────
 class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
 
@@ -59,6 +56,8 @@ class _AppRootState extends State<AppRoot> {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF071330))
+      ..setUserAgent(
+          'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setNavigationDelegate(NavigationDelegate(
         onNavigationRequest: (_) => NavigationDecision.navigate,
       ))
@@ -80,9 +79,6 @@ class _AppRootState extends State<AppRoot> {
   }
 }
 
-// ─────────────────────────────────────────────
-// SPLASH SCREEN
-// ─────────────────────────────────────────────
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -95,7 +91,6 @@ class _SplashScreenState extends State<SplashScreen>
   late AnimationController _boltController;
   late AnimationController _textController;
   late AnimationController _glowController;
-
   late Animation<double> _boltScale;
   late Animation<double> _boltOpacity;
   late Animation<double> _textOpacity;
@@ -104,7 +99,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
     _boltController = AnimationController(
       duration: const Duration(milliseconds: 900),
       vsync: this,
@@ -219,9 +213,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 }
 
-// ─────────────────────────────────────────────
-// WEBVIEW SCREEN
-// ─────────────────────────────────────────────
 class WebViewScreen extends StatefulWidget {
   final WebViewController controller;
   const WebViewScreen({super.key, required this.controller});
@@ -281,17 +272,18 @@ class _WebViewScreenState extends State<WebViewScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Uygulamadan Çık',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Exit App',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         content: const Text(
-          'BTCmarketpro\'dan çıkmak istediğinize emin misiniz?',
+          'Are you sure you want to exit BTCMarketPro?',
           style: TextStyle(color: Colors.white70),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hayır',
-                style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -300,7 +292,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Evet', style: TextStyle(color: Colors.white)),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -352,14 +344,14 @@ class _NoInternetWidget extends StatelessWidget {
             const Icon(Icons.wifi_off_rounded,
                 color: Color(0xFF1A6FFF), size: 80),
             const SizedBox(height: 24),
-            const Text('İnternet Bağlantısı Yok',
+            const Text('No Internet Connection',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
-              'BTCmarketpro\'ya bağlanmak için\ninternet bağlantınızı kontrol edin.',
+              'Please check your internet connection\nto access BTCMarketPro.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white54, fontSize: 15),
             ),
@@ -367,7 +359,7 @@ class _NoInternetWidget extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Tekrar Dene'),
+              label: const Text('Try Again'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
@@ -396,16 +388,18 @@ class _ErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/logo.png', width: 100, height: 100),
+            Image.asset('assets/logo.png', width: 100, height: 100,
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.bolt, color: Color(0xFF1A6FFF), size: 80)),
             const SizedBox(height: 24),
-            const Text('Sayfa Yüklenemedi',
+            const Text('Page Could Not Load',
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 22,
                     fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
-              'Sunucuya bağlanırken bir hata oluştu.\nLütfen tekrar deneyin.',
+              'An error occurred while connecting\nto the server. Please try again.',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white54, fontSize: 15),
             ),
@@ -413,7 +407,7 @@ class _ErrorWidget extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Yenile'),
+              label: const Text('Refresh'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
