@@ -36,20 +36,16 @@ android {
 
     signingConfigs {
         release {
-            if (System.getenv("CM_KEYSTORE_PATH")) {
-                storeFile file(System.getenv("CM_KEYSTORE_PATH"))
-                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
-                keyAlias System.getenv("CM_KEY_ALIAS")
-                keyPassword System.getenv("CM_KEY_PASSWORD")
-            } else {
-                signingConfig signingConfigs.debug
-            }
+            storeFile file(System.getenv("CM_KEYSTORE_PATH") ?: "${rootDir}/dummy.jks")
+            storePassword System.getenv("CM_KEYSTORE_PASSWORD") ?: "dummy"
+            keyAlias System.getenv("CM_KEY_ALIAS") ?: "dummy"
+            keyPassword System.getenv("CM_KEY_PASSWORD") ?: "dummy"
         }
     }
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig System.getenv("CM_KEYSTORE_PATH") ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }
