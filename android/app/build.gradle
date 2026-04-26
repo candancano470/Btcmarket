@@ -12,6 +12,12 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+def flutterVersionCode = localProperties.getProperty('flutter.versionCode')
+if (flutterVersionCode == null) { flutterVersionCode = '8' }
+
+def flutterVersionName = localProperties.getProperty('flutter.versionName')
+if (flutterVersionName == null) { flutterVersionName = '1.0.0' }
+
 android {
     namespace "com.btcmorning.btcmarketpro"
     compileSdk 35
@@ -29,8 +35,8 @@ android {
         applicationId "com.btcmorning.btcmarketpro"
         minSdk 21
         targetSdk 35
-        versionCode 1
-        versionName "1.0.0"
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
         multiDexEnabled true
     }
 
