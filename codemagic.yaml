@@ -105,6 +105,22 @@ workflows:
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
           echo "Copied to: $CM_BUILD_DIR/output/app-release.aab"
 
+      - name: Sign AAB
+        script: |
+          AAB=$CM_BUILD_DIR/output/app-release.aab
+          echo "Signing: $AAB"
+          echo "Keystore: $CM_KEYSTORE_PATH"
+          echo "Alias: $CM_KEY_ALIAS"
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore "$CM_KEYSTORE_PATH" \
+            -storepass "$CM_KEYSTORE_PASSWORD" \
+            -keypass "$CM_KEY_PASSWORD" \
+            "$AAB" "$CM_KEY_ALIAS"
+          echo "Signing complete!"
+
       - name: Build APK (Test)
         script: |
           cd $CM_BUILD_DIR
