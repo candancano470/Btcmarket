@@ -32,11 +32,177 @@ class BTCMarketProApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF071330),
         useMaterial3: true,
       ),
-      home: const WebViewScreen(),
+      home: const SplashScreen(),
     );
   }
 }
 
+// ─────────────────────────────────────────────
+// SPLASH SCREEN
+// ─────────────────────────────────────────────
+class SplashScreen extends StatefulWidget {
+  const SplashScreen({super.key});
+
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with TickerProviderStateMixin {
+  late AnimationController _boltController;
+  late AnimationController _textController;
+  late AnimationController _glowController;
+
+  late Animation<double> _boltScale;
+  late Animation<double> _boltOpacity;
+  late Animation<double> _textOpacity;
+  late Animation<double> _glow;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _boltController = AnimationController(
+      duration: const Duration(milliseconds: 900),
+      vsync: this,
+    );
+
+    _textController = AnimationController(
+      duration: const Duration(milliseconds: 700),
+      vsync: this,
+    );
+
+    _glowController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _boltScale = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _boltController, curve: Curves.elasticOut),
+    );
+
+    _boltOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _boltController,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
+      ),
+    );
+
+    _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _textController, curve: Curves.easeIn),
+    );
+
+    _glow = Tween<double>(begin: 15.0, end: 35.0).animate(
+      CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
+    );
+
+    _boltController.forward();
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted) _textController.forward();
+    });
+
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) {
+        Navigator.of(context).pushReplacement(
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => const WebViewScreen(),
+            transitionsBuilder: (_, animation, __, child) =>
+                FadeTransition(opacity: animation, child: child),
+            transitionDuration: const Duration(milliseconds: 500),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _boltController.dispose();
+    _textController.dispose();
+    _glowController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF071330),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Animasyonlu yıldırım
+            AnimatedBuilder(
+              animation: Listenable.merge([_boltController, _glowController]),
+              builder: (context, child) {
+                return Opacity(
+                  opacity: _boltOpacity.value,
+                  child: Transform.scale(
+                    scale: _boltScale.value,
+                    child: Container(
+                      width: 110,
+                      height: 110,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const RadialGradient(
+                          colors: [Color(0xFF1A6FFF), Color(0xFF071330)],
+                          radius: 0.8,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF1A6FFF).withOpacity(0.7),
+                            blurRadius: _glow.value,
+                            spreadRadius: 4,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.bolt,
+                        color: Colors.white,
+                        size: 72,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 36),
+            // BTCMarketPro yazısı
+            FadeTransition(
+              opacity: _textOpacity,
+              child: const Text(
+                'BTCMarketPro',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 34,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            FadeTransition(
+              opacity: _textOpacity,
+              child: const Text(
+                'Advanced Crypto Platform',
+                style: TextStyle(
+                  color: Color(0xFF00bcd4),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 0.8,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// WEBVIEW SCREEN
+// ─────────────────────────────────────────────
 class WebViewScreen extends StatefulWidget {
   const WebViewScreen({super.key});
 
@@ -144,15 +310,18 @@ class _WebViewScreenState extends State<WebViewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hayır', style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('Hayır',
+                style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Evet', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Evet', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -188,7 +357,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
                 _ErrorWidget(onRetry: _reloadPage)
               else
                 WebViewWidget(controller: _controller),
-
               if (_isLoading && !_hasError && _hasInternet)
                 Positioned(
                   top: 0,
