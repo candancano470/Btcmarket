@@ -45,10 +45,9 @@ workflows:
 
           build_dir = os.environ.get("CM_BUILD_DIR", ".")
           logo_path = os.path.join(build_dir, "assets/logo.png")
-          print("Looking for logo at: " + logo_path)
 
           if not os.path.exists(logo_path):
-              print("ERROR: logo.png not found at " + logo_path)
+              print("ERROR: logo.png not found")
               sys.exit(1)
 
           sizes = {
@@ -61,12 +60,26 @@ workflows:
 
           logo = Image.open(logo_path).convert("RGBA")
 
+          # Boşlukları kırp
+          bbox = logo.getbbox()
+          if bbox:
+              logo = logo.crop(bbox)
+
+          # %90 büyüklükte ortala
+          def make_icon(img, size):
+              canvas = Image.new("RGBA", (size, size), (7, 19, 48, 255))
+              icon_size = int(size * 0.90)
+              img_resized = img.resize((icon_size, icon_size), Image.LANCZOS)
+              offset = (size - icon_size) // 2
+              canvas.paste(img_resized, (offset, offset), img_resized)
+              return canvas
+
           for folder, size in sizes.items():
             path = os.path.join(build_dir, "android/app/src/main/res/" + folder)
             os.makedirs(path, exist_ok=True)
-            img = logo.resize((size, size), Image.LANCZOS)
-            img.save(path + "/ic_launcher.png")
-            img.save(path + "/ic_launcher_round.png")
+            icon = make_icon(logo, size)
+            icon.save(path + "/ic_launcher.png")
+            icon.save(path + "/ic_launcher_round.png")
             print("OK " + folder + ": " + str(size) + "x" + str(size))
           EOF
 
