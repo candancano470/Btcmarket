@@ -76,6 +76,8 @@ workflows:
       - name: Create local.properties
         script: |
           echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/android/local.properties
+          echo "flutter.versionCode=$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
+          echo "flutter.versionName=1.0.0" >> $CM_BUILD_DIR/android/local.properties
           cat $CM_BUILD_DIR/android/local.properties
 
       - name: Debug flutter path
@@ -90,7 +92,7 @@ workflows:
           flutter build appbundle \
             --release \
             --build-name=1.0.0 \
-            --build-number=20
+            --build-number=$BUILD_NUMBER
 
           echo "--- AAB Search ---"
           find $CM_BUILD_DIR -name "*.aab" 2>/dev/null
@@ -127,7 +129,7 @@ workflows:
           flutter build apk \
             --release \
             --build-name=1.0.0 \
-            --build-number=20
+            --build-number=$BUILD_NUMBER
 
           echo "--- APK Search ---"
           find $CM_BUILD_DIR -name "*.apk" 2>/dev/null
