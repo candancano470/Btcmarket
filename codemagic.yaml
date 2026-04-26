@@ -8,7 +8,7 @@ workflows:
       flutter: 3.24.5
       java: 17
       android_signing:
-        - btcmarketpro_keystore
+        - btcmarketpro
       groups:
         - btcmarketpro_env
       vars:
@@ -60,12 +60,10 @@ workflows:
 
           logo = Image.open(logo_path).convert("RGBA")
 
-          # Boşlukları agresif kırp
           bbox = logo.getbbox()
           if bbox:
               logo = logo.crop(bbox)
 
-          # %100 doldur, padding yok
           def make_icon(img, size):
               img_resized = img.resize((size, size), Image.LANCZOS)
               return img_resized
