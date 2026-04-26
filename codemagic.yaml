@@ -9,10 +9,6 @@ workflows:
       java: 17
       android_signing:
         - btcmarketpro
-      groups:
-        - btcmarketpro_env
-      vars:
-        PACKAGE_NAME: "com.btcmorning.btcmarketpro"
 
     triggering:
       events:
