@@ -231,11 +231,22 @@ class _WebViewScreenState extends State<WebViewScreen> {
   @override
   void initState() {
     super.initState();
+
+    // Stream: bağlantı değişince güncelle
     _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
       final hasNet = result != ConnectivityResult.none;
       if (!mounted) return;
       setState(() => _hasInternet = hasNet);
       if (hasNet && _hasError) _reloadPage();
+    });
+
+    // İlk açılışta 1.5sn bekle sonra kontrol et
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      if (!mounted) return;
+      final result = await Connectivity().checkConnectivity();
+      final hasNet = result != ConnectivityResult.none;
+      if (!mounted) return;
+      setState(() => _hasInternet = hasNet);
     });
 
     widget.controller.setNavigationDelegate(NavigationDelegate(
