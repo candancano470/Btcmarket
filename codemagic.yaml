@@ -90,7 +90,7 @@ workflows:
           flutter build appbundle \
             --release \
             --build-name=1.0.0 \
-            --build-number=$BUILD_NUMBER
+            --build-number=7
 
           echo "--- AAB Search ---"
           find $CM_BUILD_DIR -name "*.aab" 2>/dev/null
@@ -127,7 +127,7 @@ workflows:
           flutter build apk \
             --release \
             --build-name=1.0.0 \
-            --build-number=$BUILD_NUMBER
+            --build-number=7
 
           echo "--- APK Search ---"
           find $CM_BUILD_DIR -name "*.apk" 2>/dev/null
