@@ -38,7 +38,7 @@ class BTCMarketProApp extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────
-// APP ROOT — WebView burada oluşturulur, splash arkada yükler
+// APP ROOT
 // ─────────────────────────────────────────────
 class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
@@ -50,7 +50,6 @@ class AppRoot extends StatefulWidget {
 class _AppRootState extends State<AppRoot> {
   late final WebViewController _controller;
   bool _showSplash = true;
-  bool _pageReady = false;
 
   static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
 
@@ -61,42 +60,21 @@ class _AppRootState extends State<AppRoot> {
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF071330))
       ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) {
-          _pageReady = true;
-          _tryHideSplash();
-        },
-        onWebResourceError: (error) {
-          if (error.isForMainFrame ?? false) {
-            _pageReady = true;
-            _tryHideSplash();
-          }
-        },
         onNavigationRequest: (_) => NavigationDecision.navigate,
       ))
       ..loadRequest(Uri.parse(_homeUrl));
 
-    // En az 2 saniye splash göster
     Future.delayed(const Duration(seconds: 2), () {
-      _showSplash = false;
-      _tryHideSplash();
+      if (mounted) setState(() => _showSplash = false);
     });
-  }
-
-  void _tryHideSplash() {
-    if (!_showSplash && _pageReady && mounted) {
-      setState(() {});
-    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Stack(
       children: [
-        // WebView her zaman arkada çalışıyor
         WebViewScreen(controller: _controller),
-        // Splash üstte, hazır olunca kaybolur
-        if (_showSplash || !_pageReady)
-          const SplashScreen(),
+        if (_showSplash) const SplashScreen(),
       ],
     );
   }
@@ -269,7 +247,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
       if (hasNet && _hasError) _reloadPage();
     });
 
-    // Hata dinleyicisini güncelle
     widget.controller.setNavigationDelegate(NavigationDelegate(
       onWebResourceError: (error) {
         if (!mounted) return;
@@ -313,13 +290,15 @@ class _WebViewScreenState extends State<WebViewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hayır', style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('Hayır',
+                style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Evet', style: TextStyle(color: Colors.white)),
           ),
@@ -370,10 +349,14 @@ class _NoInternetWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded, color: Color(0xFF1A6FFF), size: 80),
+            const Icon(Icons.wifi_off_rounded,
+                color: Color(0xFF1A6FFF), size: 80),
             const SizedBox(height: 24),
             const Text('İnternet Bağlantısı Yok',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
               'BTCmarketpro\'ya bağlanmak için\ninternet bağlantınızı kontrol edin.',
@@ -388,8 +371,10 @@ class _NoInternetWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -414,7 +399,10 @@ class _ErrorWidget extends StatelessWidget {
             Image.asset('assets/logo.png', width: 100, height: 100),
             const SizedBox(height: 24),
             const Text('Sayfa Yüklenemedi',
-                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
               'Sunucuya bağlanırken bir hata oluştu.\nLütfen tekrar deneyin.',
@@ -429,8 +417,10 @@ class _ErrorWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
