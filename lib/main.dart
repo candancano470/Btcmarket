@@ -32,7 +32,72 @@ class BTCMarketProApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFF071330),
         useMaterial3: true,
       ),
-      home: const SplashScreen(),
+      home: const AppRoot(),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// APP ROOT — WebView burada oluşturulur, splash arkada yükler
+// ─────────────────────────────────────────────
+class AppRoot extends StatefulWidget {
+  const AppRoot({super.key});
+
+  @override
+  State<AppRoot> createState() => _AppRootState();
+}
+
+class _AppRootState extends State<AppRoot> {
+  late final WebViewController _controller;
+  bool _showSplash = true;
+  bool _pageReady = false;
+
+  static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = WebViewController()
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setBackgroundColor(const Color(0xFF071330))
+      ..setNavigationDelegate(NavigationDelegate(
+        onPageFinished: (_) {
+          _pageReady = true;
+          _tryHideSplash();
+        },
+        onWebResourceError: (error) {
+          if (error.isForMainFrame ?? false) {
+            _pageReady = true;
+            _tryHideSplash();
+          }
+        },
+        onNavigationRequest: (_) => NavigationDecision.navigate,
+      ))
+      ..loadRequest(Uri.parse(_homeUrl));
+
+    // En az 2 saniye splash göster
+    Future.delayed(const Duration(seconds: 2), () {
+      _showSplash = false;
+      _tryHideSplash();
+    });
+  }
+
+  void _tryHideSplash() {
+    if (!_showSplash && _pageReady && mounted) {
+      setState(() {});
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        // WebView her zaman arkada çalışıyor
+        WebViewScreen(controller: _controller),
+        // Splash üstte, hazır olunca kaybolur
+        if (_showSplash || !_pageReady)
+          const SplashScreen(),
+      ],
     );
   }
 }
@@ -66,12 +131,10 @@ class _SplashScreenState extends State<SplashScreen>
       duration: const Duration(milliseconds: 900),
       vsync: this,
     );
-
     _textController = AnimationController(
       duration: const Duration(milliseconds: 700),
       vsync: this,
     );
-
     _glowController = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -80,18 +143,15 @@ class _SplashScreenState extends State<SplashScreen>
     _boltScale = Tween<double>(begin: 0.3, end: 1.0).animate(
       CurvedAnimation(parent: _boltController, curve: Curves.elasticOut),
     );
-
     _boltOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _boltController,
         curve: const Interval(0.0, 0.4, curve: Curves.easeIn),
       ),
     );
-
     _textOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _textController, curve: Curves.easeIn),
     );
-
     _glow = Tween<double>(begin: 15.0, end: 35.0).animate(
       CurvedAnimation(parent: _glowController, curve: Curves.easeInOut),
     );
@@ -99,19 +159,6 @@ class _SplashScreenState extends State<SplashScreen>
     _boltController.forward();
     Future.delayed(const Duration(milliseconds: 500), () {
       if (mounted) _textController.forward();
-    });
-
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          PageRouteBuilder(
-            pageBuilder: (_, __, ___) => const WebViewScreen(),
-            transitionsBuilder: (_, animation, __, child) =>
-                FadeTransition(opacity: animation, child: child),
-            transitionDuration: const Duration(milliseconds: 500),
-          ),
-        );
-      }
     });
   }
 
@@ -131,7 +178,6 @@ class _SplashScreenState extends State<SplashScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Animasyonlu yıldırım
             AnimatedBuilder(
               animation: Listenable.merge([_boltController, _glowController]),
               builder: (context, child) {
@@ -156,18 +202,13 @@ class _SplashScreenState extends State<SplashScreen>
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.bolt,
-                        color: Colors.white,
-                        size: 72,
-                      ),
+                      child: const Icon(Icons.bolt, color: Colors.white, size: 72),
                     ),
                   ),
                 );
               },
             ),
             const SizedBox(height: 36),
-            // BTCMarketPro yazısı
             FadeTransition(
               opacity: _textOpacity,
               child: const Text(
@@ -204,18 +245,16 @@ class _SplashScreenState extends State<SplashScreen>
 // WEBVIEW SCREEN
 // ─────────────────────────────────────────────
 class WebViewScreen extends StatefulWidget {
-  const WebViewScreen({super.key});
+  final WebViewController controller;
+  const WebViewScreen({super.key, required this.controller});
 
   @override
   State<WebViewScreen> createState() => _WebViewScreenState();
 }
 
 class _WebViewScreenState extends State<WebViewScreen> {
-  late final WebViewController _controller;
-  bool _isLoading = true;
   bool _hasError = false;
   bool _hasInternet = true;
-  int _loadingProgress = 0;
   late StreamSubscription<ConnectivityResult> _connectivitySub;
 
   static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
@@ -223,71 +262,37 @@ class _WebViewScreenState extends State<WebViewScreen> {
   @override
   void initState() {
     super.initState();
-    _initConnectivity();
-    _initWebView();
-  }
-
-  void _initConnectivity() {
     _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
       final hasNet = result != ConnectivityResult.none;
       if (!mounted) return;
       setState(() => _hasInternet = hasNet);
-      if (hasNet && _hasError) {
-        _reloadPage();
-      }
+      if (hasNet && _hasError) _reloadPage();
     });
-  }
 
-  void _initWebView() {
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFF071330))
-      ..setNavigationDelegate(
-        NavigationDelegate(
-          onPageStarted: (_) {
-            if (!mounted) return;
-            setState(() {
-              _isLoading = true;
-              _hasError = false;
-              _loadingProgress = 0;
-            });
-          },
-          onProgress: (progress) {
-            if (!mounted) return;
-            setState(() => _loadingProgress = progress);
-          },
-          onPageFinished: (_) {
-            if (!mounted) return;
-            setState(() => _isLoading = false);
-          },
-          onWebResourceError: (error) {
-            if (!mounted) return;
-            if (error.isForMainFrame ?? false) {
-              setState(() {
-                _isLoading = false;
-                _hasError = true;
-              });
-            }
-          },
-          onNavigationRequest: (request) {
-            return NavigationDecision.navigate;
-          },
-        ),
-      )
-      ..loadRequest(Uri.parse(_homeUrl));
+    // Hata dinleyicisini güncelle
+    widget.controller.setNavigationDelegate(NavigationDelegate(
+      onWebResourceError: (error) {
+        if (!mounted) return;
+        if (error.isForMainFrame ?? false) {
+          setState(() => _hasError = true);
+        }
+      },
+      onPageFinished: (_) {
+        if (!mounted) return;
+        setState(() => _hasError = false);
+      },
+      onNavigationRequest: (_) => NavigationDecision.navigate,
+    ));
   }
 
   Future<void> _reloadPage() async {
-    setState(() {
-      _hasError = false;
-      _isLoading = true;
-    });
-    await _controller.reload();
+    setState(() => _hasError = false);
+    await widget.controller.reload();
   }
 
   Future<bool> _onWillPop() async {
-    if (await _controller.canGoBack()) {
-      await _controller.goBack();
+    if (await widget.controller.canGoBack()) {
+      await widget.controller.goBack();
       return false;
     }
     return _showExitDialog();
@@ -299,10 +304,8 @@ class _WebViewScreenState extends State<WebViewScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Uygulamadan Çık',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Uygulamadan Çık',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
           'BTCmarketpro\'dan çıkmak istediğinize emin misiniz?',
           style: TextStyle(color: Colors.white70),
@@ -310,18 +313,15 @@ class _WebViewScreenState extends State<WebViewScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Hayır',
-                style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('Hayır', style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child:
-                const Text('Evet', style: TextStyle(color: Colors.white)),
+            child: const Text('Evet', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -342,38 +342,16 @@ class _WebViewScreenState extends State<WebViewScreen> {
       onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
         final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) {
-          SystemNavigator.pop();
-        }
+        if (shouldPop && mounted) SystemNavigator.pop();
       },
       child: Scaffold(
         backgroundColor: const Color(0xFF071330),
         body: SafeArea(
-          child: Stack(
-            children: [
-              if (!_hasInternet)
-                _NoInternetWidget(onRetry: _reloadPage)
-              else if (_hasError)
-                _ErrorWidget(onRetry: _reloadPage)
-              else
-                WebViewWidget(controller: _controller),
-              if (_isLoading && !_hasError && _hasInternet)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: LinearProgressIndicator(
-                    value: _loadingProgress < 100
-                        ? _loadingProgress / 100
-                        : null,
-                    backgroundColor: const Color(0xFF071330),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                        Color(0xFF1A6FFF)),
-                    minHeight: 3,
-                  ),
-                ),
-            ],
-          ),
+          child: !_hasInternet
+              ? _NoInternetWidget(onRetry: _reloadPage)
+              : _hasError
+                  ? _ErrorWidget(onRetry: _reloadPage)
+                  : WebViewWidget(controller: widget.controller),
         ),
       ),
     );
@@ -392,16 +370,10 @@ class _NoInternetWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded,
-                color: Color(0xFF1A6FFF), size: 80),
+            const Icon(Icons.wifi_off_rounded, color: Color(0xFF1A6FFF), size: 80),
             const SizedBox(height: 24),
-            const Text(
-              'İnternet Bağlantısı Yok',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
-            ),
+            const Text('İnternet Bağlantısı Yok',
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
               'BTCmarketpro\'ya bağlanmak için\ninternet bağlantınızı kontrol edin.',
@@ -416,10 +388,8 @@ class _NoInternetWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
@@ -443,13 +413,8 @@ class _ErrorWidget extends StatelessWidget {
           children: [
             Image.asset('assets/logo.png', width: 100, height: 100),
             const SizedBox(height: 24),
-            const Text(
-              'Sayfa Yüklenemedi',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold),
-            ),
+            const Text('Sayfa Yüklenemedi',
+                style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
               'Sunucuya bağlanırken bir hata oluştu.\nLütfen tekrar deneyin.',
@@ -464,10 +429,8 @@ class _ErrorWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
             ),
           ],
