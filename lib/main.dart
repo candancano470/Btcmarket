@@ -60,11 +60,15 @@ class _AppRootState extends State<AppRoot> {
           'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setNavigationDelegate(NavigationDelegate(
         onNavigationRequest: (_) => NavigationDecision.navigate,
+        onPageFinished: (_) {
+          if (mounted) setState(() => _showSplash = false);
+        },
       ))
       ..loadRequest(Uri.parse(_homeUrl));
 
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _showSplash = false);
+    // Max 6 saniye bekle, hâlâ yüklenmediyse yine de kaldır
+    Future.delayed(const Duration(seconds: 6), () {
+      if (mounted && _showSplash) setState(() => _showSplash = false);
     });
   }
 
@@ -232,7 +236,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
   void initState() {
     super.initState();
 
-    // Stream: bağlantı değişince güncelle
     _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
       final hasNet = result != ConnectivityResult.none;
       if (!mounted) return;
@@ -240,7 +243,6 @@ class _WebViewScreenState extends State<WebViewScreen> {
       if (hasNet && _hasError) _reloadPage();
     });
 
-    // İlk açılışta 1.5sn bekle sonra kontrol et
     Future.delayed(const Duration(milliseconds: 1500), () async {
       if (!mounted) return;
       final result = await Connectivity().checkConnectivity();
