@@ -60,19 +60,15 @@ workflows:
 
           logo = Image.open(logo_path).convert("RGBA")
 
-          # Boşlukları kırp
+          # Boşlukları agresif kırp
           bbox = logo.getbbox()
           if bbox:
               logo = logo.crop(bbox)
 
-          # %90 büyüklükte ortala
+          # %100 doldur, padding yok
           def make_icon(img, size):
-              canvas = Image.new("RGBA", (size, size), (7, 19, 48, 255))
-              icon_size = int(size * 0.90)
-              img_resized = img.resize((icon_size, icon_size), Image.LANCZOS)
-              offset = (size - icon_size) // 2
-              canvas.paste(img_resized, (offset, offset), img_resized)
-              return canvas
+              img_resized = img.resize((size, size), Image.LANCZOS)
+              return img_resized
 
           for folder, size in sizes.items():
             path = os.path.join(build_dir, "android/app/src/main/res/" + folder)
