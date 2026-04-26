@@ -47,38 +47,133 @@ class AppRoot extends StatefulWidget {
 class _AppRootState extends State<AppRoot> {
   late final WebViewController _controller;
   bool _showSplash = true;
+  bool _hasError = false;
+  bool _hasInternet = true;
+  late StreamSubscription<ConnectivityResult> _connectivitySub;
 
   static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
 
   @override
   void initState() {
     super.initState();
+
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
+      final hasNet = result != ConnectivityResult.none;
+      if (!mounted) return;
+      setState(() => _hasInternet = hasNet);
+    });
+
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setBackgroundColor(const Color(0xFF071330))
       ..setUserAgent(
           'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
       ..setNavigationDelegate(NavigationDelegate(
-        onNavigationRequest: (_) => NavigationDecision.navigate,
         onPageFinished: (_) {
-          if (mounted) setState(() => _showSplash = false);
+          if (!mounted) return;
+          setState(() {
+            _showSplash = false;
+            _hasError = false;
+          });
         },
+        onWebResourceError: (error) {
+          if (!mounted) return;
+          if (error.isForMainFrame ?? false) {
+            setState(() {
+              _showSplash = false;
+              _hasError = true;
+            });
+          }
+        },
+        onNavigationRequest: (_) => NavigationDecision.navigate,
       ))
       ..loadRequest(Uri.parse(_homeUrl));
 
-    // Max 6 saniye bekle, hâlâ yüklenmediyse yine de kaldır
-    Future.delayed(const Duration(seconds: 6), () {
+    // Max 8 saniye sonra her halükarda splash kaldır
+    Future.delayed(const Duration(seconds: 8), () {
       if (mounted && _showSplash) setState(() => _showSplash = false);
     });
   }
 
+  Future<void> _reloadPage() async {
+    setState(() {
+      _hasError = false;
+      _showSplash = true;
+    });
+    await _controller.reload();
+  }
+
+  Future<bool> _onWillPop() async {
+    if (await _controller.canGoBack()) {
+      await _controller.goBack();
+      return false;
+    }
+    return _showExitDialog();
+  }
+
+  Future<bool> _showExitDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF0D1F3C),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Exit App',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'Are you sure you want to exit BTCMarketPro?',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1A6FFF),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        WebViewScreen(controller: _controller),
-        if (_showSplash) const SplashScreen(),
-      ],
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldPop = await _onWillPop();
+        if (shouldPop && mounted) SystemNavigator.pop();
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF071330),
+        body: SafeArea(
+          child: Stack(
+            children: [
+              if (!_hasInternet)
+                _NoInternetWidget(onRetry: _reloadPage)
+              else if (_hasError)
+                _ErrorWidget(onRetry: _reloadPage)
+              else
+                WebViewWidget(controller: _controller),
+              if (_showSplash) const SplashScreen(),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -211,131 +306,6 @@ class _SplashScreenState extends State<SplashScreen>
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class WebViewScreen extends StatefulWidget {
-  final WebViewController controller;
-  const WebViewScreen({super.key, required this.controller});
-
-  @override
-  State<WebViewScreen> createState() => _WebViewScreenState();
-}
-
-class _WebViewScreenState extends State<WebViewScreen> {
-  bool _hasError = false;
-  bool _hasInternet = true;
-  late StreamSubscription<ConnectivityResult> _connectivitySub;
-
-  static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
-
-  @override
-  void initState() {
-    super.initState();
-
-    _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
-      final hasNet = result != ConnectivityResult.none;
-      if (!mounted) return;
-      setState(() => _hasInternet = hasNet);
-      if (hasNet && _hasError) _reloadPage();
-    });
-
-    Future.delayed(const Duration(milliseconds: 1500), () async {
-      if (!mounted) return;
-      final result = await Connectivity().checkConnectivity();
-      final hasNet = result != ConnectivityResult.none;
-      if (!mounted) return;
-      setState(() => _hasInternet = hasNet);
-    });
-
-    widget.controller.setNavigationDelegate(NavigationDelegate(
-      onWebResourceError: (error) {
-        if (!mounted) return;
-        if (error.isForMainFrame ?? false) {
-          setState(() => _hasError = true);
-        }
-      },
-      onPageFinished: (_) {
-        if (!mounted) return;
-        setState(() => _hasError = false);
-      },
-      onNavigationRequest: (_) => NavigationDecision.navigate,
-    ));
-  }
-
-  Future<void> _reloadPage() async {
-    setState(() => _hasError = false);
-    await widget.controller.reload();
-  }
-
-  Future<bool> _onWillPop() async {
-    if (await widget.controller.canGoBack()) {
-      await widget.controller.goBack();
-      return false;
-    }
-    return _showExitDialog();
-  }
-
-  Future<bool> _showExitDialog() async {
-    final result = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF0D1F3C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Exit App',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Are you sure you want to exit BTCMarketPro?',
-          style: TextStyle(color: Colors.white70),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Yes', style: TextStyle(color: Colors.white)),
-          ),
-        ],
-      ),
-    );
-    return result ?? false;
-  }
-
-  @override
-  void dispose() {
-    _connectivitySub.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, result) async {
-        if (didPop) return;
-        final shouldPop = await _onWillPop();
-        if (shouldPop && mounted) SystemNavigator.pop();
-      },
-      child: Scaffold(
-        backgroundColor: const Color(0xFF071330),
-        body: SafeArea(
-          child: !_hasInternet
-              ? _NoInternetWidget(onRetry: _reloadPage)
-              : _hasError
-                  ? _ErrorWidget(onRetry: _reloadPage)
-                  : WebViewWidget(controller: widget.controller),
         ),
       ),
     );
