@@ -101,6 +101,21 @@ workflows:
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
           echo "✓ AAB hazır"
 
+      - name: AAB İmzala
+        script: |
+          AAB="$CM_BUILD_DIR/output/app-release.aab"
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore "$CM_KEYSTORE_PATH" \
+            -storepass "$CM_KEYSTORE_PASSWORD" \
+            -keypass "$CM_KEY_PASSWORD" \
+            "$AAB" \
+            "$CM_KEY_ALIAS"
+          echo "✓ AAB imzalandı"
+          jarsigner -verify "$AAB" && echo "✓ İmza doğrulandı" || echo "HATA: İmza doğrulanamadı!"
+
       - name: APK Derle (Test)
         script: |
           cd $CM_BUILD_DIR
@@ -119,6 +134,20 @@ workflows:
           cp "$APK" $CM_BUILD_DIR/output/app-release.apk
           echo "✓ APK hazır"
 
+      - name: APK İmzala
+        script: |
+          APK="$CM_BUILD_DIR/output/app-release.apk"
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore "$CM_KEYSTORE_PATH" \
+            -storepass "$CM_KEYSTORE_PASSWORD" \
+            -keypass "$CM_KEY_PASSWORD" \
+            "$APK" \
+            "$CM_KEY_ALIAS"
+          echo "✓ APK imzalandı"
+
       - name: Build Özeti
         script: |
           echo "================================"
@@ -126,17 +155,4 @@ workflows:
           echo "================================"
           echo "Version : 1.0.$BUILD_NUMBER ($BUILD_NUMBER)"
           echo "Branch  : $CM_BRANCH"
-          echo "================================"
-          ls -lh $CM_BUILD_DIR/output/
-
-    artifacts:
-      - output/app-release.aab
-      - output/app-release.apk
-
-    publishing:
-      email:
-        recipients:
-          - airdroptour@gmail.com
-        notify:
-          success: true
-          failure: true
+          echo "======
