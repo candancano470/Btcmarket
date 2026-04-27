@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:file_picker/file_picker.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -174,21 +175,16 @@ class _AppRootState extends State<AppRoot> {
                       });
                     }
                   },
-                  onShowFileChooser: (controller, fileChooserParams) async {
-                    final intent = fileChooserParams.acceptTypes
-                            ?.any((t) => t.contains('image')) ??
-                        true;
-                    return await FilePicker.platform.pickFiles(
-                      type: intent ? FileType.image : FileType.any,
-                      allowMultiple: fileChooserParams.mode ==
-                          FileChooserMode.openMultiple,
-                    ).then((result) {
-                      if (result == null) return [];
-                      return result.files
-                          .where((f) => f.path != null)
-                          .map((f) => f.path!)
-                          .toList();
-                    });
+                  androidOnShowFileChooser: (controller, fileChooserParams) async {
+                    final result = await FilePicker.platform.pickFiles(
+                      type: FileType.image,
+                      allowMultiple: false,
+                    );
+                    if (result == null) return [];
+                    return result.files
+                        .where((f) => f.path != null)
+                        .map((f) => f.path!)
+                        .toList();
                   },
                 ),
               if (_showSplash) const SplashScreen(),
