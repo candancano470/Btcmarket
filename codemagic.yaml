@@ -1,11 +1,11 @@
 workflows:
   android-release:
-    name: BTCmarketpro Android Release
+    name: BTCMarketPro Android Release
     max_build_duration: 60
     instance_type: mac_mini_m2
 
     environment:
-      flutter: 3.24.5
+      flutter: 3.27.3
       java: 17
       android_signing:
         - btcmarketpro
@@ -18,20 +18,20 @@ workflows:
           include: true
 
     scripts:
-      - name: Set up Flutter
+      - name: Flutter Kontrolü
         script: |
           flutter --version
-          flutter doctor
+          flutter doctor -v
 
-      - name: Get packages
+      - name: Paketleri Yükle
         script: flutter pub get
 
-      - name: Generate splash screen
+      - name: Splash Screen Oluştur
         script: |
           cd $CM_BUILD_DIR
           dart run flutter_native_splash:create
 
-      - name: Generate app icons from logo
+      - name: Uygulama İkonları Oluştur
         script: |
           cd $CM_BUILD_DIR
           pip3 install Pillow
@@ -43,105 +43,85 @@ workflows:
           logo_path = os.path.join(build_dir, "assets/logo.png")
 
           if not os.path.exists(logo_path):
-              print("ERROR: logo.png not found")
+              print("ERROR: logo.png bulunamadı!")
               sys.exit(1)
 
           sizes = {
-            "mipmap-mdpi": 48,
-            "mipmap-hdpi": 72,
-            "mipmap-xhdpi": 96,
-            "mipmap-xxhdpi": 144,
-            "mipmap-xxxhdpi": 192,
+              "mipmap-mdpi":     48,
+              "mipmap-hdpi":     72,
+              "mipmap-xhdpi":    96,
+              "mipmap-xxhdpi":  144,
+              "mipmap-xxxhdpi": 192,
           }
 
           logo = Image.open(logo_path).convert("RGBA")
-
           bbox = logo.getbbox()
           if bbox:
               logo = logo.crop(bbox)
 
-          def make_icon(img, size):
-              img_resized = img.resize((size, size), Image.LANCZOS)
-              return img_resized
-
           for folder, size in sizes.items():
-            path = os.path.join(build_dir, "android/app/src/main/res/" + folder)
-            os.makedirs(path, exist_ok=True)
-            icon = make_icon(logo, size)
-            icon.save(path + "/ic_launcher.png")
-            icon.save(path + "/ic_launcher_round.png")
-            print("OK " + folder + ": " + str(size) + "x" + str(size))
+              path = os.path.join(build_dir, f"android/app/src/main/res/{folder}")
+              os.makedirs(path, exist_ok=True)
+              icon = logo.resize((size, size), Image.LANCZOS)
+              icon.save(f"{path}/ic_launcher.png")
+              icon.save(f"{path}/ic_launcher_round.png")
+              print(f"✓ {folder}: {size}x{size}")
           EOF
 
-      - name: Create local.properties
+      - name: local.properties Ayarla
         script: |
           echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/android/local.properties
           echo "flutter.versionCode=$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
-          echo "flutter.versionName=1.0.0" >> $CM_BUILD_DIR/android/local.properties
+          echo "flutter.versionName=1.0.$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
+          echo "sdk.dir=$ANDROID_SDK_ROOT" >> $CM_BUILD_DIR/android/local.properties
           cat $CM_BUILD_DIR/android/local.properties
 
-      - name: Debug flutter path
-        script: |
-          echo "FLUTTER_ROOT: $FLUTTER_ROOT"
-          ls $FLUTTER_ROOT/packages/flutter_tools/gradle/
-          cat $CM_BUILD_DIR/android/local.properties
-
-      - name: Build AAB (Google Play)
+      - name: AAB Derle (Google Play)
         script: |
           cd $CM_BUILD_DIR
           flutter build appbundle \
             --release \
-            --build-name=1.0.0 \
-            --build-number=$BUILD_NUMBER
-
-          echo "--- AAB Search ---"
-          find $CM_BUILD_DIR -name "*.aab" 2>/dev/null
+            --build-name=1.0.$BUILD_NUMBER \
+            --build-number=$BUILD_NUMBER \
+            --no-tree-shake-icons
 
           AAB=$(find $CM_BUILD_DIR -name "*.aab" | head -1)
           if [ -z "$AAB" ]; then
-            echo "ERROR: No AAB found!"
+            echo "HATA: AAB bulunamadı!"
             exit 1
           fi
 
           mkdir -p $CM_BUILD_DIR/output
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
-          echo "Copied to: $CM_BUILD_DIR/output/app-release.aab"
+          echo "✓ AAB hazır"
 
-      - name: Sign AAB
-        script: |
-          AAB=$CM_BUILD_DIR/output/app-release.aab
-          echo "Signing: $AAB"
-          echo "Keystore: $CM_KEYSTORE_PATH"
-          echo "Alias: $CM_KEY_ALIAS"
-          jarsigner \
-            -verbose \
-            -sigalg SHA256withRSA \
-            -digestalg SHA-256 \
-            -keystore "$CM_KEYSTORE_PATH" \
-            -storepass "$CM_KEYSTORE_PASSWORD" \
-            -keypass "$CM_KEY_PASSWORD" \
-            "$AAB" "$CM_KEY_ALIAS"
-          echo "Signing complete!"
-
-      - name: Build APK (Test)
+      - name: APK Derle (Test)
         script: |
           cd $CM_BUILD_DIR
           flutter build apk \
             --release \
-            --build-name=1.0.0 \
-            --build-number=$BUILD_NUMBER
+            --build-name=1.0.$BUILD_NUMBER \
+            --build-number=$BUILD_NUMBER \
+            --no-tree-shake-icons
 
-          echo "--- APK Search ---"
-          find $CM_BUILD_DIR -name "*.apk" 2>/dev/null
-
-          APK=$(find $CM_BUILD_DIR -name "*.apk" | head -1)
+          APK=$(find $CM_BUILD_DIR -name "app-release.apk" | head -1)
           if [ -z "$APK" ]; then
-            echo "ERROR: No APK found!"
+            echo "HATA: APK bulunamadı!"
             exit 1
           fi
 
           cp "$APK" $CM_BUILD_DIR/output/app-release.apk
-          echo "Copied to: $CM_BUILD_DIR/output/app-release.apk"
+          echo "✓ APK hazır"
+
+      - name: Build Özeti
+        script: |
+          echo "================================"
+          echo "  BTCMarketPro Build Tamamlandı"
+          echo "================================"
+          echo "Version : 1.0.$BUILD_NUMBER ($BUILD_NUMBER)"
+          echo "Branch  : $CM_BRANCH"
+          echo "================================"
+          ls -lh $CM_BUILD_DIR/output/
 
     artifacts:
       - output/app-release.aab
