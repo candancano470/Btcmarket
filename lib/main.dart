@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
@@ -120,18 +122,43 @@ class _AppRootState extends State<AppRoot> {
     controller.addJavaScriptHandler(
       handlerName: 'flutterFileUpload',
       callback: (args) async {
-        final result = await FilePicker.platform.pickFiles(
-          type: FileType.image,
-          allowMultiple: false,
-        );
-        if (result == null || result.files.isEmpty) {
+        try {
+          final result = await FilePicker.platform.pickFiles(
+            type: FileType.image,
+            allowMultiple: false,
+            withData: true,
+          );
+
+          if (result == null || result.files.isEmpty) {
+            await controller.evaluateJavascript(
+                source: 'window._flutterFileCallback(null, null, null)');
+            return;
+          }
+
+          final file = result.files.first;
+          List<int>? bytes = file.bytes;
+
+          if ((bytes == null || bytes.isEmpty) && file.path != null) {
+            bytes = await File(file.path!).readAsBytes();
+          }
+
+          if (bytes == null || bytes.isEmpty) {
+            await controller.evaluateJavascript(
+                source: 'window._flutterFileCallback(null, null, null)');
+            return;
+          }
+
+          final base64Data = base64Encode(bytes);
+          final ext = (file.extension ?? 'jpeg').toLowerCase();
+          final mimeType = ext == 'png' ? 'image/png' : 'image/jpeg';
+          final fileName = file.name;
+
           await controller.evaluateJavascript(
-              source: 'window._flutterFileCallback(null)');
-          return;
+              source: "window._flutterFileCallback('$base64Data', '$fileName', '$mimeType')");
+        } catch (e) {
+          await controller.evaluateJavascript(
+              source: 'window._flutterFileCallback(null, null, null)');
         }
-        final path = result.files.first.path ?? '';
-        await controller.evaluateJavascript(
-            source: "window._flutterFileCallback('$path')");
       },
     );
   }
@@ -186,14 +213,42 @@ class _AppRootState extends State<AppRoot> {
                       _showSplash = false;
                       _hasError = false;
                     });
+
                     await controller.evaluateJavascript(source: '''
                       (function() {
+                        if (window._btcFileHandlerReady) return;
+                        window._btcFileHandlerReady = true;
+                        window._activeFileInput = null;
+
+                        window._flutterFileCallback = function(base64Data, fileName, mimeType) {
+                          if (!base64Data || !window._activeFileInput) return;
+                          try {
+                            var byteStr = atob(base64Data);
+                            var ab = new ArrayBuffer(byteStr.length);
+                            var ia = new Uint8Array(ab);
+                            for (var i = 0; i < byteStr.length; i++) {
+                              ia[i] = byteStr.charCodeAt(i);
+                            }
+                            var blob = new Blob([ab], { type: mimeType || 'image/jpeg' });
+                            var file = new File([blob], fileName || 'photo.jpg', { type: mimeType || 'image/jpeg' });
+                            var dt = new DataTransfer();
+                            dt.items.add(file);
+                            window._activeFileInput.files = dt.files;
+                            window._activeFileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                            window._activeFileInput.dispatchEvent(new Event('input', { bubbles: true }));
+                            window._activeFileInput = null;
+                          } catch(e) {
+                            console.error('File inject error:', e);
+                          }
+                        };
+
                         document.addEventListener('click', function(e) {
                           var el = e.target;
                           while (el) {
                             if (el.tagName === 'INPUT' && el.type === 'file') {
                               e.preventDefault();
                               e.stopPropagation();
+                              window._activeFileInput = el;
                               window.flutter_inappwebview.callHandler('flutterFileUpload');
                               return false;
                             }
@@ -390,8 +445,7 @@ class _NoInternetWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -415,9 +469,11 @@ class _ErrorWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset('assets/logo.png', width: 100, height: 100,
-                errorBuilder: (_, __, ___) => const Icon(
-                    Icons.bolt, color: Color(0xFF1A6FFF), size: 80)),
+            Image.asset('assets/logo.png',
+                width: 100,
+                height: 100,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.bolt, color: Color(0xFF1A6FFF), size: 80)),
             const SizedBox(height: 24),
             const Text('Page Could Not Load',
                 style: TextStyle(
@@ -438,8 +494,7 @@ class _ErrorWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 32, vertical: 14),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
