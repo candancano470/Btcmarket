@@ -155,4 +155,17 @@ workflows:
           echo "================================"
           echo "Version : 1.0.$BUILD_NUMBER ($BUILD_NUMBER)"
           echo "Branch  : $CM_BRANCH"
-          echo "======
+          echo "================================"
+          ls -lh $CM_BUILD_DIR/output/
+
+    artifacts:
+      - output/app-release.aab
+      - output/app-release.apk
+
+    publishing:
+      email:
+        recipients:
+          - airdroptour@gmail.com
+        notify:
+          success: true
+          failure: true
