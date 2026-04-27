@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:image_picker/image_picker.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,15 +68,6 @@ class _AppRootState extends State<AppRoot> {
       ..setBackgroundColor(const Color(0xFF071330))
       ..setUserAgent(
           'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
-      ..setOnShowFileChooser((params) async {
-        final ImagePicker picker = ImagePicker();
-        final XFile? image = await picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 85,
-        );
-        if (image == null) return [];
-        return [image.path];
-      })
       ..setNavigationDelegate(NavigationDelegate(
         onPageFinished: (_) {
           if (!mounted) return;
