@@ -44,18 +44,18 @@ android {
 
     signingConfigs {
         release {
-            if (System.getenv("KEY_STORE_PATH")) {
-                storeFile file(System.getenv("KEY_STORE_PATH"))
-                storePassword System.getenv("KEY_STORE_PASSWORD")
-                keyAlias System.getenv("KEY_ALIAS")
-                keyPassword System.getenv("KEY_PASSWORD")
+            if (System.getenv("CM_KEYSTORE_PATH")) {
+                storeFile file(System.getenv("CM_KEYSTORE_PATH"))
+                storePassword System.getenv("CM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("CM_KEY_ALIAS")
+                keyPassword System.getenv("CM_KEY_PASSWORD")
             }
         }
     }
 
     buildTypes {
         release {
-            if (System.getenv("KEY_STORE_PATH")) {
+            if (System.getenv("CM_KEYSTORE_PATH")) {
                 signingConfig signingConfigs.release
             } else {
                 signingConfig signingConfigs.debug
