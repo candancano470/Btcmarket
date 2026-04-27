@@ -116,6 +116,26 @@ class _AppRootState extends State<AppRoot> {
     return result ?? false;
   }
 
+  void _setupFileUploadHandler(InAppWebViewController controller) {
+    controller.addJavaScriptHandler(
+      handlerName: 'flutterFileUpload',
+      callback: (args) async {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.image,
+          allowMultiple: false,
+        );
+        if (result == null || result.files.isEmpty) {
+          await controller.evaluateJavascript(
+              source: 'window._flutterFileCallback(null)');
+          return;
+        }
+        final path = result.files.first.path ?? '';
+        await controller.evaluateJavascript(
+            source: "window._flutterFileCallback('$path')");
+      },
+    );
+  }
+
   @override
   void dispose() {
     _connectivitySub.cancel();
@@ -158,13 +178,31 @@ class _AppRootState extends State<AppRoot> {
                   ),
                   onWebViewCreated: (controller) {
                     _controller = controller;
+                    _setupFileUploadHandler(controller);
                   },
-                  onLoadStop: (controller, url) {
+                  onLoadStop: (controller, url) async {
                     if (!mounted) return;
                     setState(() {
                       _showSplash = false;
                       _hasError = false;
                     });
+                    // File input intercept
+                    await controller.evaluateJavascript(source: '''
+                      (function() {
+                        document.addEventListener('click', function(e) {
+                          var el = e.target;
+                          while (el) {
+                            if (el.tagName === 'INPUT' && el.type === 'file') {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.flutter_inappwebview.callHandler('flutterFileUpload');
+                              return false;
+                            }
+                            el = el.parentElement;
+                          }
+                        }, true);
+                      })();
+                    ''');
                   },
                   onReceivedError: (controller, request, error) {
                     if (!mounted) return;
@@ -174,17 +212,6 @@ class _AppRootState extends State<AppRoot> {
                         _hasError = true;
                       });
                     }
-                  },
-                  androidOnShowFileChooser: (controller, fileChooserParams) async {
-                    final result = await FilePicker.platform.pickFiles(
-                      type: FileType.image,
-                      allowMultiple: false,
-                    );
-                    if (result == null) return [];
-                    return result.files
-                        .where((f) => f.path != null)
-                        .map((f) => f.path!)
-                        .toList();
                   },
                 ),
               if (_showSplash) const SplashScreen(),
