@@ -50,15 +50,15 @@ class _AppRootState extends State<AppRoot> {
   bool _showSplash = true;
   bool _hasError = false;
   bool _hasInternet = true;
-  late StreamSubscription<ConnectivityResult> _connectivitySub;
+  late StreamSubscription<List<ConnectivityResult>> _connectivitySub;
 
   static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
 
   @override
   void initState() {
     super.initState();
-    _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
-      final hasNet = result != ConnectivityResult.none;
+    _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
+      final hasNet = results.isNotEmpty && results.first != ConnectivityResult.none;
       if (!mounted) return;
       setState(() => _hasInternet = hasNet);
     });
@@ -186,7 +186,6 @@ class _AppRootState extends State<AppRoot> {
                       _showSplash = false;
                       _hasError = false;
                     });
-                    // File input intercept
                     await controller.evaluateJavascript(source: '''
                       (function() {
                         document.addEventListener('click', function(e) {
