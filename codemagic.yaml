@@ -76,6 +76,12 @@ workflows:
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> $CM_BUILD_DIR/android/local.properties
           cat $CM_BUILD_DIR/android/local.properties
 
+      - name: İmza Kontrolü
+        script: |
+          echo "Keystore path: $CM_KEYSTORE_PATH"
+          echo "Key alias: $CM_KEY_ALIAS"
+          ls -la "$CM_KEYSTORE_PATH" || echo "HATA: Keystore bulunamadı!"
+
       - name: AAB Derle (Google Play)
         script: |
           cd $CM_BUILD_DIR
