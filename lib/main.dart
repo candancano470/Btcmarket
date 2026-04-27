@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:webview_flutter/webview_flutter.dart';
+import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 void main() {
@@ -45,7 +45,7 @@ class AppRoot extends StatefulWidget {
 }
 
 class _AppRootState extends State<AppRoot> {
-  late final WebViewController _controller;
+  InAppWebViewController? _controller;
   bool _showSplash = true;
   bool _hasError = false;
   bool _hasInternet = true;
@@ -56,38 +56,11 @@ class _AppRootState extends State<AppRoot> {
   @override
   void initState() {
     super.initState();
-
     _connectivitySub = Connectivity().onConnectivityChanged.listen((result) {
       final hasNet = result != ConnectivityResult.none;
       if (!mounted) return;
       setState(() => _hasInternet = hasNet);
     });
-
-    _controller = WebViewController()
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFF071330))
-      ..setUserAgent(
-          'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36')
-      ..setNavigationDelegate(NavigationDelegate(
-        onPageFinished: (_) {
-          if (!mounted) return;
-          setState(() {
-            _showSplash = false;
-            _hasError = false;
-          });
-        },
-        onWebResourceError: (error) {
-          if (!mounted) return;
-          if (error.isForMainFrame ?? false) {
-            setState(() {
-              _showSplash = false;
-              _hasError = true;
-            });
-          }
-        },
-        onNavigationRequest: (_) => NavigationDecision.navigate,
-      ))
-      ..loadRequest(Uri.parse(_homeUrl));
 
     Future.delayed(const Duration(seconds: 8), () {
       if (mounted && _showSplash) setState(() => _showSplash = false);
@@ -99,12 +72,12 @@ class _AppRootState extends State<AppRoot> {
       _hasError = false;
       _showSplash = true;
     });
-    await _controller.reload();
+    await _controller?.reload();
   }
 
   Future<bool> _onWillPop() async {
-    if (await _controller.canGoBack()) {
-      await _controller.goBack();
+    if (_controller != null && await _controller!.canGoBack()) {
+      await _controller!.goBack();
       return false;
     }
     return _showExitDialog();
@@ -167,7 +140,40 @@ class _AppRootState extends State<AppRoot> {
               else if (_hasError)
                 _ErrorWidget(onRetry: _reloadPage)
               else
-                WebViewWidget(controller: _controller),
+                InAppWebView(
+                  initialUrlRequest: URLRequest(
+                    url: WebUri(_homeUrl),
+                  ),
+                  initialSettings: InAppWebViewSettings(
+                    javaScriptEnabled: true,
+                    mediaPlaybackRequiresUserGesture: false,
+                    allowFileAccessFromFileURLs: true,
+                    allowUniversalAccessFromFileURLs: true,
+                    useHybridComposition: true,
+                    hardwareAcceleration: true,
+                    userAgent:
+                        'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+                  ),
+                  onWebViewCreated: (controller) {
+                    _controller = controller;
+                  },
+                  onLoadStop: (controller, url) {
+                    if (!mounted) return;
+                    setState(() {
+                      _showSplash = false;
+                      _hasError = false;
+                    });
+                  },
+                  onReceivedError: (controller, request, error) {
+                    if (!mounted) return;
+                    if (request.isForMainFrame ?? false) {
+                      setState(() {
+                        _showSplash = false;
+                        _hasError = true;
+                      });
+                    }
+                  },
+                ),
               if (_showSplash) const SplashScreen(),
             ],
           ),
