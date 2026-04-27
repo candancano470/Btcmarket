@@ -151,6 +151,7 @@ class _AppRootState extends State<AppRoot> {
                     allowUniversalAccessFromFileURLs: true,
                     useHybridComposition: true,
                     hardwareAcceleration: true,
+                    allowsInlineMediaPlayback: true,
                     userAgent:
                         'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                   ),
@@ -172,6 +173,22 @@ class _AppRootState extends State<AppRoot> {
                         _hasError = true;
                       });
                     }
+                  },
+                  onShowFileChooser: (controller, fileChooserParams) async {
+                    final intent = fileChooserParams.acceptTypes
+                            ?.any((t) => t.contains('image')) ??
+                        true;
+                    return await FilePicker.platform.pickFiles(
+                      type: intent ? FileType.image : FileType.any,
+                      allowMultiple: fileChooserParams.mode ==
+                          FileChooserMode.openMultiple,
+                    ).then((result) {
+                      if (result == null) return [];
+                      return result.files
+                          .where((f) => f.path != null)
+                          .map((f) => f.path!)
+                          .toList();
+                    });
                   },
                 ),
               if (_showSplash) const SplashScreen(),
