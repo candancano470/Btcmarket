@@ -12,7 +12,6 @@ dependencies:
   flutter_inappwebview: ^6.1.5
   connectivity_plus: ^6.0.5
   file_picker: ^8.1.2
-  permission_handler: ^11.3.1
   url_launcher: ^6.3.0
   flutter_local_notifications: ^17.2.4
 
