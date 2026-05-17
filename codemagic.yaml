@@ -70,10 +70,10 @@ workflows:
 
       - name: local.properties Ayarla
         script: |
-          VERSION_CODE=$((1000 + BUILD_NUMBER))
+          VERSION_CODE=$((2000 + BUILD_NUMBER))
           echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/android/local.properties
           echo "flutter.versionCode=$VERSION_CODE" >> $CM_BUILD_DIR/android/local.properties
-          echo "flutter.versionName=1.1.$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
+          echo "flutter.versionName=1.2.$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> $CM_BUILD_DIR/android/local.properties
           cat $CM_BUILD_DIR/android/local.properties
 
@@ -87,11 +87,11 @@ workflows:
         script: |
           cd $CM_BUILD_DIR
           mkdir -p output
-          VERSION_CODE=$((1000 + BUILD_NUMBER))
+          VERSION_CODE=$((2000 + BUILD_NUMBER))
 
           flutter build appbundle \
             --release \
-            --build-name=1.1.$BUILD_NUMBER \
+            --build-name=1.2.$BUILD_NUMBER \
             --build-number=$VERSION_CODE \
             --no-tree-shake-icons
 
@@ -105,7 +105,7 @@ workflows:
 
           flutter build apk \
             --release \
-            --build-name=1.1.$BUILD_NUMBER \
+            --build-name=1.2.$BUILD_NUMBER \
             --build-number=$VERSION_CODE \
             --no-tree-shake-icons
 
@@ -119,11 +119,11 @@ workflows:
 
       - name: Build Özeti
         script: |
-          VERSION_CODE=$((1000 + BUILD_NUMBER))
+          VERSION_CODE=$((2000 + BUILD_NUMBER))
           echo "================================"
           echo "  BTCMarketPro Build Tamamlandı"
           echo "================================"
-          echo "Version : 1.1.$BUILD_NUMBER ($VERSION_CODE)"
+          echo "Version : 1.2.$BUILD_NUMBER ($VERSION_CODE)"
           echo "Branch  : $CM_BRANCH"
           echo "================================"
           ls -lh $CM_BUILD_DIR/output/
