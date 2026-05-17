@@ -12,14 +12,14 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "500"
-def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.1.0"
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "2000"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.2.0"
 
 android {
     namespace "com.btcmorning.btcmarketpro"
     compileSdk 35
     buildToolsVersion "35.0.0"
-    ndkVersion flutter.ndkVersion
+    ndkVersion "27.0.12077973"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
