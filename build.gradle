@@ -12,42 +12,44 @@ if (localPropertiesFile.exists()) {
     }
 }
 
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "76"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0.8"
+
 android {
     namespace "com.btcmorning.btcmarketpro"
-    compileSdk 34
+    compileSdk 35
+    buildToolsVersion "35.0.0"
     ndkVersion flutter.ndkVersion
 
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     sourceSets {
         main.java.srcDirs += "src/main/kotlin"
     }
 
+    signingConfigs {
+        release {
+            keyAlias System.getenv("CM_KEY_ALIAS") ?: ""
+            keyPassword System.getenv("CM_KEY_PASSWORD") ?: ""
+            storeFile System.getenv("CM_KEYSTORE_PATH") ? file(System.getenv("CM_KEYSTORE_PATH")) : null
+            storePassword System.getenv("CM_KEYSTORE_PASSWORD") ?: ""
+        }
+    }
+
     defaultConfig {
         applicationId "com.btcmorning.btcmarketpro"
         minSdk 21
-        targetSdk 34
-        versionCode 7
-        versionName "1.0.7"
+        targetSdk 35
+        versionCode flutterVersionCode.toInteger()
+        versionName flutterVersionName
         multiDexEnabled true
-    }
-
-    signingConfigs {
-        release {
-            if (System.getenv("KEY_STORE_PATH")) {
-                storeFile file(System.getenv("KEY_STORE_PATH"))
-                storePassword System.getenv("KEY_STORE_PASSWORD")
-                keyAlias System.getenv("KEY_ALIAS")
-                keyPassword System.getenv("KEY_PASSWORD")
-            }
-        }
     }
 
     buildTypes {
@@ -55,6 +57,12 @@ android {
             signingConfig signingConfigs.release
             minifyEnabled false
             shrinkResources false
+        }
+    }
+
+    splits {
+        abi {
+            enable false
         }
     }
 }
@@ -65,4 +73,5 @@ flutter {
 
 dependencies {
     implementation "androidx.multidex:multidex:2.0.1"
+    implementation "androidx.work:work-runtime-ktx:2.9.1"
 }
