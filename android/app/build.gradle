@@ -12,8 +12,8 @@ if (localPropertiesFile.exists()) {
     }
 }
 
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "75"
-def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.0.7"
+def flutterVersionCode = localProperties.getProperty("flutter.versionCode") ?: "500"
+def flutterVersionName = localProperties.getProperty("flutter.versionName") ?: "1.1.0"
 
 android {
     namespace "com.btcmorning.btcmarketpro"
