@@ -87,21 +87,30 @@ workflows:
           cd $CM_BUILD_DIR
           mkdir -p output
 
-          cd android
-          ./gradlew bundleRelease
-          ./gradlew assembleRelease
-          cd ..
+          flutter build appbundle \
+            --release \
+            --build-name=1.0.$BUILD_NUMBER \
+            --build-number=$BUILD_NUMBER \
+            --no-tree-shake-icons
 
-          AAB=$(find $CM_BUILD_DIR/android/app/build/outputs/bundle -name "*.aab" 2>/dev/null | head -1)
+          echo "=== Tüm AAB dosyaları ==="
+          find / -name "*.aab" 2>/dev/null || true
+
+          AAB=$(find / -name "*.aab" 2>/dev/null | head -1)
           if [ -z "$AAB" ]; then
             echo "HATA: AAB bulunamadı!"
-            find $CM_BUILD_DIR/android/app/build -type f 2>/dev/null
             exit 1
           fi
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
           echo "✓ AAB hazır: $AAB"
 
-          APK=$(find $CM_BUILD_DIR/android/app/build/outputs/apk -name "app-release.apk" 2>/dev/null | head -1)
+          flutter build apk \
+            --release \
+            --build-name=1.0.$BUILD_NUMBER \
+            --build-number=$BUILD_NUMBER \
+            --no-tree-shake-icons
+
+          APK=$(find / -name "app-release.apk" 2>/dev/null | head -1)
           if [ -z "$APK" ]; then
             echo "HATA: APK bulunamadı!"
             exit 1
