@@ -87,25 +87,20 @@ workflows:
           cd $CM_BUILD_DIR
           mkdir -p output
 
-          cd android
-          ./gradlew bundleRelease --stacktrace 2>&1 | tail -150
-          cd ..
-
           flutter build appbundle \
             --release \
             --build-name=1.0.$BUILD_NUMBER \
             --build-number=$BUILD_NUMBER \
-            --no-tree-shake-icons \
-            --verbose
+            --no-tree-shake-icons
 
-          AAB=$(find $CM_BUILD_DIR -name "*.aab" | head -1)
+          AAB=$(find $CM_BUILD_DIR/build -name "*.aab" 2>/dev/null | head -1)
           if [ -z "$AAB" ]; then
             echo "HATA: AAB bulunamadı!"
-            find $CM_BUILD_DIR -name "*.aab" 2>/dev/null || true
+            find $CM_BUILD_DIR/build -type f -name "*.aab" 2>/dev/null
             exit 1
           fi
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
-          echo "✓ AAB hazır"
+          echo "✓ AAB hazır: $AAB"
 
           flutter build apk \
             --release \
@@ -113,13 +108,13 @@ workflows:
             --build-number=$BUILD_NUMBER \
             --no-tree-shake-icons
 
-          APK=$(find $CM_BUILD_DIR -name "app-release.apk" | head -1)
+          APK=$(find $CM_BUILD_DIR/build -name "app-release.apk" 2>/dev/null | head -1)
           if [ -z "$APK" ]; then
             echo "HATA: APK bulunamadı!"
             exit 1
           fi
           cp "$APK" $CM_BUILD_DIR/output/app-release.apk
-          echo "✓ APK hazır"
+          echo "✓ APK hazır: $APK"
 
       - name: İmzala
         script: |
