@@ -70,9 +70,10 @@ workflows:
 
       - name: local.properties Ayarla
         script: |
+          VERSION_CODE=$((1000 + BUILD_NUMBER))
           echo "flutter.sdk=$FLUTTER_ROOT" > $CM_BUILD_DIR/android/local.properties
-          echo "flutter.versionCode=$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
-          echo "flutter.versionName=1.0.$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
+          echo "flutter.versionCode=$VERSION_CODE" >> $CM_BUILD_DIR/android/local.properties
+          echo "flutter.versionName=1.1.$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> $CM_BUILD_DIR/android/local.properties
           cat $CM_BUILD_DIR/android/local.properties
 
@@ -86,11 +87,12 @@ workflows:
         script: |
           cd $CM_BUILD_DIR
           mkdir -p output
+          VERSION_CODE=$((1000 + BUILD_NUMBER))
 
           flutter build appbundle \
             --release \
-            --build-name=1.0.$BUILD_NUMBER \
-            --build-number=$BUILD_NUMBER \
+            --build-name=1.1.$BUILD_NUMBER \
+            --build-number=$VERSION_CODE \
             --no-tree-shake-icons
 
           AAB="/Users/builder/clone/android/app/build/outputs/bundle/release/app-release.aab"
@@ -103,8 +105,8 @@ workflows:
 
           flutter build apk \
             --release \
-            --build-name=1.0.$BUILD_NUMBER \
-            --build-number=$BUILD_NUMBER \
+            --build-name=1.1.$BUILD_NUMBER \
+            --build-number=$VERSION_CODE \
             --no-tree-shake-icons
 
           APK="/Users/builder/clone/android/app/build/outputs/flutter-apk/app-release.apk"
@@ -117,10 +119,11 @@ workflows:
 
       - name: Build Özeti
         script: |
+          VERSION_CODE=$((1000 + BUILD_NUMBER))
           echo "================================"
           echo "  BTCMarketPro Build Tamamlandı"
           echo "================================"
-          echo "Version : 1.0.$BUILD_NUMBER ($BUILD_NUMBER)"
+          echo "Version : 1.1.$BUILD_NUMBER ($VERSION_CODE)"
           echo "Branch  : $CM_BRANCH"
           echo "================================"
           ls -lh $CM_BUILD_DIR/output/
