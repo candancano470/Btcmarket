@@ -93,16 +93,13 @@ workflows:
             --build-number=$BUILD_NUMBER \
             --no-tree-shake-icons
 
-          echo "=== Tüm AAB dosyaları ==="
-          find / -name "*.aab" 2>/dev/null || true
-
-          AAB=$(find / -name "*.aab" 2>/dev/null | head -1)
-          if [ -z "$AAB" ]; then
+          AAB="/Users/builder/clone/android/app/build/outputs/bundle/release/app-release.aab"
+          if [ ! -f "$AAB" ]; then
             echo "HATA: AAB bulunamadı!"
             exit 1
           fi
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
-          echo "✓ AAB hazır: $AAB"
+          echo "✓ AAB hazır"
 
           flutter build apk \
             --release \
@@ -110,13 +107,13 @@ workflows:
             --build-number=$BUILD_NUMBER \
             --no-tree-shake-icons
 
-          APK=$(find / -name "app-release.apk" 2>/dev/null | head -1)
-          if [ -z "$APK" ]; then
+          APK="/Users/builder/clone/android/app/build/outputs/flutter-apk/app-release.apk"
+          if [ ! -f "$APK" ]; then
             echo "HATA: APK bulunamadı!"
             exit 1
           fi
           cp "$APK" $CM_BUILD_DIR/output/app-release.apk
-          echo "✓ APK hazır: $APK"
+          echo "✓ APK hazır"
 
       - name: Build Özeti
         script: |
