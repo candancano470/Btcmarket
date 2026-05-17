@@ -546,4 +546,34 @@ class _ErrorWidget extends StatelessWidget {
             Image.asset('assets/logo.png',
                 width: 100,
                 height: 100,
-                errorBuilder: (_, __, ___
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.bolt, color: Color(0xFF1A6FFF), size: 80)),
+            const SizedBox(height: 24),
+            const Text('Page Could Not Load',
+                style: TextStyle(
+                    color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text(
+              'An error occurred while connecting\nto the server. Please try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 15),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Refresh'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A6FFF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
