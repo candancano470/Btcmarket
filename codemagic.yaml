@@ -74,7 +74,6 @@ workflows:
           echo "flutter.versionCode=$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
           echo "flutter.versionName=1.0.$BUILD_NUMBER" >> $CM_BUILD_DIR/android/local.properties
           echo "sdk.dir=$ANDROID_SDK_ROOT" >> $CM_BUILD_DIR/android/local.properties
-          cat $CM_BUILD_DIR/android/local.properties
 
       - name: İmza Kontrolü
         script: |
@@ -82,61 +81,44 @@ workflows:
           echo "Key alias: $CM_KEY_ALIAS"
           ls -la "$CM_KEYSTORE_PATH" || echo "HATA: Keystore bulunamadı!"
 
-      - name: AAB Derle (Google Play)
+      - name: AAB ve APK Derle
         script: |
           cd $CM_BUILD_DIR
+          mkdir -p output
+
+          # AAB — Google Play
           flutter build appbundle \
             --release \
             --build-name=1.0.$BUILD_NUMBER \
             --build-number=$BUILD_NUMBER \
             --no-tree-shake-icons
 
-          AAB=$(find $CM_BUILD_DIR -name "*.aab" | head -1)
+          AAB=$(find $CM_BUILD_DIR/build -name "*.aab" | head -1)
           if [ -z "$AAB" ]; then
             echo "HATA: AAB bulunamadı!"
             exit 1
           fi
-
-          mkdir -p $CM_BUILD_DIR/output
           cp "$AAB" $CM_BUILD_DIR/output/app-release.aab
           echo "✓ AAB hazır"
 
-      - name: AAB İmzala
-        script: |
-          AAB="$CM_BUILD_DIR/output/app-release.aab"
-          jarsigner \
-            -verbose \
-            -sigalg SHA256withRSA \
-            -digestalg SHA-256 \
-            -keystore "$CM_KEYSTORE_PATH" \
-            -storepass "$CM_KEYSTORE_PASSWORD" \
-            -keypass "$CM_KEY_PASSWORD" \
-            "$AAB" \
-            "$CM_KEY_ALIAS"
-          echo "✓ AAB imzalandı"
-          jarsigner -verify "$AAB" && echo "✓ İmza doğrulandı" || echo "HATA: İmza doğrulanamadı!"
-
-      - name: APK Derle (Test)
-        script: |
-          cd $CM_BUILD_DIR
+          # APK — Direkt yükleme / test
           flutter build apk \
             --release \
             --build-name=1.0.$BUILD_NUMBER \
             --build-number=$BUILD_NUMBER \
             --no-tree-shake-icons
 
-          APK=$(find $CM_BUILD_DIR -name "app-release.apk" | head -1)
+          APK=$(find $CM_BUILD_DIR/build -name "app-release.apk" | head -1)
           if [ -z "$APK" ]; then
             echo "HATA: APK bulunamadı!"
             exit 1
           fi
-
           cp "$APK" $CM_BUILD_DIR/output/app-release.apk
           echo "✓ APK hazır"
 
-      - name: APK İmzala
+      - name: İmzala
         script: |
-          APK="$CM_BUILD_DIR/output/app-release.apk"
+          # AAB imzala
           jarsigner \
             -verbose \
             -sigalg SHA256withRSA \
@@ -144,7 +126,19 @@ workflows:
             -keystore "$CM_KEYSTORE_PATH" \
             -storepass "$CM_KEYSTORE_PASSWORD" \
             -keypass "$CM_KEY_PASSWORD" \
-            "$APK" \
+            "$CM_BUILD_DIR/output/app-release.aab" \
+            "$CM_KEY_ALIAS"
+          echo "✓ AAB imzalandı"
+
+          # APK imzala
+          jarsigner \
+            -verbose \
+            -sigalg SHA256withRSA \
+            -digestalg SHA-256 \
+            -keystore "$CM_KEYSTORE_PATH" \
+            -storepass "$CM_KEYSTORE_PASSWORD" \
+            -keypass "$CM_KEY_PASSWORD" \
+            "$CM_BUILD_DIR/output/app-release.apk" \
             "$CM_KEY_ALIAS"
           echo "✓ APK imzalandı"
 
