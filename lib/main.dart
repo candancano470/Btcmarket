@@ -240,14 +240,12 @@ class _AppRootState extends State<AppRoot> {
                     allowFileAccessFromFileURLs: true,
                     allowUniversalAccessFromFileURLs: true,
                     useHybridComposition: true,
-                    hardwareAccelerated: true,
+                    // hardwareAccelerated kaldırıldı
                     allowsInlineMediaPlayback: true,
                     userAgent:
                         'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
                   ),
-                  onWebViewCreated: (controller) {
-                    _controller = controller;
-                  },
+                  onWebViewCreated: (controller) => _controller = controller,
                   shouldOverrideUrlLoading:
                       (controller, navigationAction) async {
                     final url =
@@ -281,6 +279,163 @@ class _AppRootState extends State<AppRoot> {
                   },
                 ),
               if (_showSplash) const SplashScreen(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── SplashScreen ──────────────────────────────────────────────────────────────
+
+class SplashScreen extends StatelessWidget {
+  const SplashScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF071330),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Image.asset(
+              'assets/images/logo.png',
+              width: 120,
+              height: 120,
+              errorBuilder: (_, __, ___) => const Icon(
+                Icons.currency_bitcoin,
+                size: 80,
+                color: Color(0xFF1A6FFF),
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'BTCMarketPro',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+            const SizedBox(height: 32),
+            const SizedBox(
+              width: 32,
+              height: 32,
+              child: CircularProgressIndicator(
+                color: Color(0xFF1A6FFF),
+                strokeWidth: 3,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── _NoInternetWidget ─────────────────────────────────────────────────────────
+
+class _NoInternetWidget extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _NoInternetWidget({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF071330),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.wifi_off_rounded,
+                  size: 72, color: Colors.white38),
+              const SizedBox(height: 20),
+              const Text(
+                'İnternet Bağlantısı Yok',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Lütfen bağlantınızı kontrol edip tekrar deneyin.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+              const SizedBox(height: 28),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tekrar Dene'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A6FFF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── _ErrorWidget ──────────────────────────────────────────────────────────────
+
+class _ErrorWidget extends StatelessWidget {
+  final VoidCallback onRetry;
+  const _ErrorWidget({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFF071330),
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  size: 72, color: Colors.redAccent),
+              const SizedBox(height: 20),
+              const Text(
+                'Sayfa Yüklenemedi',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Bir hata oluştu. Lütfen tekrar deneyin.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
+              const SizedBox(height: 28),
+              ElevatedButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Tekrar Dene'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF1A6FFF),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
             ],
           ),
         ),
