@@ -19,7 +19,6 @@ Future<void> _initNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const initSettings = InitializationSettings(android: androidInit);
   await _notifPlugin.initialize(initSettings);
-  // Request POST_NOTIFICATIONS permission via native channel (Android 13+)
   try {
     await _permChannel.invokeMethod('requestNotificationPermission');
   } catch (_) {}
@@ -45,26 +44,20 @@ Future<void> _showNotification(String title, String body) async {
   );
 }
 
-/// Returns true if URL should open in external browser/app
 bool _isExternalUrl(String url) {
   if (url.isEmpty) return false;
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
 
-  // Always external: special schemes
   const externalSchemes = ['tg', 'tel', 'mailto', 'intent', 'market'];
   if (externalSchemes.contains(uri.scheme)) return true;
 
-  // Telegram
   if (uri.host == 't.me' || uri.host.endsWith('.t.me')) return true;
 
-  // Non-http schemes
   if (uri.scheme != 'http' && uri.scheme != 'https') return true;
 
-  // Internal: btcmorning.com and subdomains
   if (uri.host.contains('btcmorning.com')) return false;
 
-  // Everything else → external browser
   return true;
 }
 
@@ -205,7 +198,8 @@ class _AppRootState extends State<AppRoot> {
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Exit App',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+          style:
+              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         content: const Text(
           'Are you sure you want to exit BTCMarketPro?',
