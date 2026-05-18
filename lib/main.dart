@@ -446,8 +446,7 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color:
-                                const Color(0xFF1A6FFF).withOpacity(0.7),
+                            color: const Color(0xFF1A6FFF).withOpacity(0.7),
                             blurRadius: _glow.value,
                             spreadRadius: 4,
                           ),
@@ -549,5 +548,39 @@ class _ErrorWidget extends StatelessWidget {
             Image.asset('assets/logo.png',
                 width: 100,
                 height: 100,
-                errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.error_outli
+                errorBuilder: (_, __, ___) => const Icon(
+                    Icons.error_outline,
+                    color: Color(0xFF1A6FFF),
+                    size: 80)),
+            const SizedBox(height: 24),
+            const Text('Connection Error',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold)),
+            const SizedBox(height: 12),
+            const Text(
+              'Could not load BTCMarketPro.\nPlease try again.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.white54, fontSize: 15),
+            ),
+            const SizedBox(height: 32),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF1A6FFF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
