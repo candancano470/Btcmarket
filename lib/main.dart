@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'background_service.dart';
@@ -212,30 +212,26 @@ class _AppRootState extends State<AppRoot> {
       handlerName: 'flutterFileUpload',
       callback: (args) async {
         try {
-          final result = await FilePicker.platform.pickFiles(
-            type: FileType.image,
-            allowMultiple: false,
-            withData: true,
+          final picker = ImagePicker();
+          final XFile? image = await picker.pickImage(
+            source: ImageSource.gallery,
+            imageQuality: 85,
           );
-          if (result == null || result.files.isEmpty) {
+          if (image == null) {
             await controller.evaluateJavascript(
                 source: 'window._flutterFileCallback(null, null, null)');
             return;
           }
-          final file = result.files.first;
-          List<int>? bytes = file.bytes;
-          if ((bytes == null || bytes.isEmpty) && file.path != null) {
-            bytes = await File(file.path!).readAsBytes();
-          }
-          if (bytes == null || bytes.isEmpty) {
+          final bytes = await image.readAsBytes();
+          if (bytes.isEmpty) {
             await controller.evaluateJavascript(
                 source: 'window._flutterFileCallback(null, null, null)');
             return;
           }
           final base64Data = base64Encode(bytes);
-          final ext = (file.extension ?? 'jpeg').toLowerCase();
+          final fileName = image.name;
+          final ext = image.name.split('.').last.toLowerCase();
           final mimeType = ext == 'png' ? 'image/png' : 'image/jpeg';
-          final fileName = file.name;
           await controller.evaluateJavascript(
               source:
                   "window._flutterFileCallback('$base64Data', '$fileName', '$mimeType')");
@@ -392,13 +388,13 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _boltController =
-        AnimationController(duration: const Duration(milliseconds: 900), vsync: this);
-    _textController =
-        AnimationController(duration: const Duration(milliseconds: 700), vsync: this);
-    _glowController =
-        AnimationController(duration: const Duration(milliseconds: 1200), vsync: this)
-          ..repeat(reverse: true);
+    _boltController = AnimationController(
+        duration: const Duration(milliseconds: 900), vsync: this);
+    _textController = AnimationController(
+        duration: const Duration(milliseconds: 700), vsync: this);
+    _glowController = AnimationController(
+        duration: const Duration(milliseconds: 1200), vsync: this)
+      ..repeat(reverse: true);
     _boltScale = Tween<double>(begin: 0.3, end: 1.0).animate(
         CurvedAnimation(parent: _boltController, curve: Curves.elasticOut));
     _boltOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -432,7 +428,8 @@ class _SplashScreenState extends State<SplashScreen>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AnimatedBuilder(
-              animation: Listenable.merge([_boltController, _glowController]),
+              animation:
+                  Listenable.merge([_boltController, _glowController]),
               builder: (context, child) {
                 return Opacity(
                   opacity: _boltOpacity.value,
@@ -449,13 +446,15 @@ class _SplashScreenState extends State<SplashScreen>
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF1A6FFF).withOpacity(0.7),
+                            color:
+                                const Color(0xFF1A6FFF).withOpacity(0.7),
                             blurRadius: _glow.value,
                             spreadRadius: 4,
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.bolt, color: Colors.white, size: 72),
+                      child: const Icon(Icons.bolt,
+                          color: Colors.white, size: 72),
                     ),
                   ),
                 );
@@ -500,11 +499,14 @@ class _NoInternetWidget extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.wifi_off_rounded, color: Color(0xFF1A6FFF), size: 80),
+            const Icon(Icons.wifi_off_rounded,
+                color: Color(0xFF1A6FFF), size: 80),
             const SizedBox(height: 24),
             const Text('No Internet Connection',
                 style: TextStyle(
-                    color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             const Text(
               'Please check your internet connection\nto access BTCMarketPro.',
@@ -519,7 +521,8 @@ class _NoInternetWidget extends StatelessWidget {
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF1A6FFF),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 32, vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
@@ -547,33 +550,4 @@ class _ErrorWidget extends StatelessWidget {
                 width: 100,
                 height: 100,
                 errorBuilder: (_, __, ___) =>
-                    const Icon(Icons.bolt, color: Color(0xFF1A6FFF), size: 80)),
-            const SizedBox(height: 24),
-            const Text('Page Could Not Load',
-                style: TextStyle(
-                    color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 12),
-            const Text(
-              'An error occurred while connecting\nto the server. Please try again.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white54, fontSize: 15),
-            ),
-            const SizedBox(height: 32),
-            ElevatedButton.icon(
-              onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded),
-              label: const Text('Refresh'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF1A6FFF),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
+                    const Icon(Icons.error_outli
