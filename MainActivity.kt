@@ -18,11 +18,9 @@ class MainActivity : FlutterActivity() {
     private val NOTIF_REQUEST_CODE = 1001
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Fixes Android Vitals: edge-to-edge deprecated API warnings
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
-        // Request notification permission on launch (Android 13+)
         requestNotificationPermission()
     }
 
@@ -58,7 +56,8 @@ class MainActivity : FlutterActivity() {
     private fun hasNotificationPermission(): Boolean {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             ContextCompat.checkSelfPermission(
-                this, Manifest.permission.POST_NOTIFICATIONS
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
         } else true
     }
