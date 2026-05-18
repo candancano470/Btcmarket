@@ -6,17 +6,13 @@
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
 
+    <!-- Android 13+ bildirim izni (Google politikası zorunlu) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29"/>
-
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"
-        tools:node="remove"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO"
-        tools:node="remove"/>
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
-        tools:node="remove"/>
 
     <application
         android:label="BTCMarketPro"
@@ -26,7 +22,8 @@
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true"
         android:largeHeap="true"
-        android:networkSecurityConfig="@xml/network_security_config">
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:enableOnBackInvokedCallback="true">
 
         <activity
             android:name=".MainActivity"
@@ -58,10 +55,6 @@
         </provider>
 
         <meta-data android:name="flutterEmbedding" android:value="2"/>
-
-        <meta-data
-            android:name="android.webkit.WebView.EnableSafeBrowsing"
-            android:value="false"/>
 
     </application>
 </manifest>
