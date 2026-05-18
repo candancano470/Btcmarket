@@ -19,7 +19,7 @@ android {
     namespace "com.btcmorning.btcmarketpro"
     compileSdk 35
     buildToolsVersion "35.0.0"
-    ndkVersion "27.2.12479018"
+    ndkVersion "27.0.12077973"
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
@@ -63,6 +63,12 @@ android {
     splits {
         abi {
             enable false
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = false
         }
     }
 }
