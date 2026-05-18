@@ -44,20 +44,28 @@ Future<void> _showNotification(String title, String body) async {
   );
 }
 
+/// Harici URL kontrolü — btcmorning.com dışı her şey harici
 bool _isExternalUrl(String url) {
   if (url.isEmpty) return false;
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
 
+  // tg://, tel:, mailto:, intent:, market:
   const externalSchemes = ['tg', 'tel', 'mailto', 'intent', 'market'];
   if (externalSchemes.contains(uri.scheme)) return true;
 
-  if (uri.host == 't.me' || uri.host.endsWith('.t.me')) return true;
+  // t.me linkleri (https://t.me/xxx)
+  if (uri.host == 't.me' ||
+      uri.host.endsWith('.t.me') ||
+      uri.host == 'telegram.me') return true;
 
+  // http/https dışı scheme
   if (uri.scheme != 'http' && uri.scheme != 'https') return true;
 
+  // btcmorning.com dahili
   if (uri.host.contains('btcmorning.com')) return false;
 
+  // Geri kalan her şey harici tarayıcıda aç
   return true;
 }
 
@@ -131,7 +139,8 @@ class _AppRootState extends State<AppRoot> {
       setState(() => _hasInternet = hasNet);
     });
 
-    Future.delayed(const Duration(seconds: 8), () {
+    // Splash max 10 sn, sayfa yüklenince kapanır
+    Future.delayed(const Duration(seconds: 10), () {
       if (mounted && _showSplash) setState(() => _showSplash = false);
     });
 
@@ -142,7 +151,7 @@ class _AppRootState extends State<AppRoot> {
     _notifTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
       await _checkForNotifications();
     });
-    Future.delayed(const Duration(seconds: 30), _checkForNotifications);
+    Future.delayed(const Duration(seconds: 15), _checkForNotifications);
   }
 
   Future<void> _checkForNotifications() async {
@@ -196,11 +205,9 @@ class _AppRootState extends State<AppRoot> {
         backgroundColor: const Color(0xFF0D1F3C),
         shape:
             RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Exit App',
-          style:
-              TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Exit App',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text(
           'Are you sure you want to exit BTCMarketPro?',
           style: TextStyle(color: Colors.white70),
@@ -218,8 +225,8 @@ class _AppRootState extends State<AppRoot> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
-            child:
-                const Text('Yes', style: TextStyle(color: Colors.white)),
+            child: const Text('Yes',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -258,13 +265,16 @@ class _AppRootState extends State<AppRoot> {
                       URLRequest(url: WebUri(_homeUrl)),
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
-                    mediaPlaybackRequiresUserGesture: false,
-                    allowFileAccessFromFileURLs: true,
-                    allowUniversalAccessFromFileURLs: true,
+                    mediaPlaybackRequiresUserGesture: true,
+                    allowFileAccessFromFileURLs: false,
+                    allowUniversalAccessFromFileURLs: false,
                     useHybridComposition: true,
-                    allowsInlineMediaPlayback: true,
+                    allowsInlineMediaPlayback: false,
                     domStorageEnabled: true,
                     databaseEnabled: true,
+                    cacheEnabled: true,
+                    // Kamera/mikrofon WebView seviyesinde engellendi
+                    mediaType: null,
                     userAgent:
                         'Mozilla/5.0 (Linux; Android 14; Pixel 8) '
                         'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -272,6 +282,16 @@ class _AppRootState extends State<AppRoot> {
                   ),
                   onWebViewCreated: (controller) =>
                       _controller = controller,
+
+                  // ✅ KRİTİK: WebView kamera/mikrofon isteklerini REDDET
+                  // Bu popup'ı tamamen kaldırır
+                  onPermissionRequest: (controller, request) async {
+                    return PermissionResponse(
+                      resources: request.resources,
+                      action: PermissionResponseAction.DENY,
+                    );
+                  },
+
                   shouldOverrideUrlLoading:
                       (controller, navigationAction) async {
                     final url =
@@ -281,15 +301,23 @@ class _AppRootState extends State<AppRoot> {
                     if (_isExternalUrl(url)) {
                       try {
                         final uri = Uri.parse(url);
-                        await launchUrl(
+                        // Önce external app (Telegram vs), olmazsa browser
+                        final launched = await launchUrl(
                           uri,
                           mode: LaunchMode.externalApplication,
                         );
+                        if (!launched) {
+                          await launchUrl(
+                            uri,
+                            mode: LaunchMode.externalNonBrowserApplication,
+                          );
+                        }
                       } catch (_) {}
                       return NavigationActionPolicy.CANCEL;
                     }
                     return NavigationActionPolicy.ALLOW;
                   },
+
                   onLoadStop: (controller, url) async {
                     if (!mounted) return;
                     setState(() {
@@ -297,6 +325,7 @@ class _AppRootState extends State<AppRoot> {
                       _hasError = false;
                     });
                   },
+
                   onReceivedError: (controller, request, error) {
                     if (!mounted) return;
                     if (request.isForMainFrame ?? false) {
@@ -329,33 +358,56 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              'assets/logo.png',
-              width: 120,
-              height: 120,
-              errorBuilder: (_, __, ___) => const Icon(
-                Icons.currency_bitcoin,
-                size: 80,
-                color: Color(0xFF1A6FFF),
+            // Logo — assets/logo.png dosyan buraya gelecek
+            // Yoksa mavi BTC ikonu gösterir
+            ClipRRect(
+              borderRadius: BorderRadius.circular(24),
+              child: Image.asset(
+                'assets/logo.png',
+                width: 110,
+                height: 110,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0D1F3C),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: const Icon(
+                    Icons.currency_bitcoin,
+                    size: 70,
+                    color: Color(0xFF1A6FFF),
+                  ),
+                ),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
             const Text(
               'BTCMarketPro',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 1.2,
+                letterSpacing: 1.5,
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 8),
+            const Text(
+              'Advanced Crypto Platform',
+              style: TextStyle(
+                color: Color(0xFF1A6FFF),
+                fontSize: 13,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 40),
             const SizedBox(
-              width: 32,
-              height: 32,
+              width: 28,
+              height: 28,
               child: CircularProgressIndicator(
                 color: Color(0xFF1A6FFF),
-                strokeWidth: 3,
+                strokeWidth: 2.5,
               ),
             ),
           ],
@@ -382,7 +434,7 @@ class _NoInternetWidget extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.wifi_off_rounded,
-                  size: 72, color: Colors.white38),
+                  size: 72, color: Colors.white24),
               const SizedBox(height: 20),
               const Text(
                 'No Internet Connection',
