@@ -44,28 +44,22 @@ Future<void> _showNotification(String title, String body) async {
   );
 }
 
-/// Harici URL kontrolü — btcmorning.com dışı her şey harici
 bool _isExternalUrl(String url) {
   if (url.isEmpty) return false;
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
 
-  // tg://, tel:, mailto:, intent:, market:
   const externalSchemes = ['tg', 'tel', 'mailto', 'intent', 'market'];
   if (externalSchemes.contains(uri.scheme)) return true;
 
-  // t.me linkleri (https://t.me/xxx)
   if (uri.host == 't.me' ||
       uri.host.endsWith('.t.me') ||
       uri.host == 'telegram.me') return true;
 
-  // http/https dışı scheme
   if (uri.scheme != 'http' && uri.scheme != 'https') return true;
 
-  // btcmorning.com dahili
   if (uri.host.contains('btcmorning.com')) return false;
 
-  // Geri kalan her şey harici tarayıcıda aç
   return true;
 }
 
@@ -139,7 +133,6 @@ class _AppRootState extends State<AppRoot> {
       setState(() => _hasInternet = hasNet);
     });
 
-    // Splash max 10 sn, sayfa yüklenince kapanır
     Future.delayed(const Duration(seconds: 10), () {
       if (mounted && _showSplash) setState(() => _showSplash = false);
     });
@@ -203,8 +196,8 @@ class _AppRootState extends State<AppRoot> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16)),
         title: const Text('Exit App',
             style: TextStyle(
                 color: Colors.white, fontWeight: FontWeight.bold)),
@@ -273,8 +266,6 @@ class _AppRootState extends State<AppRoot> {
                     domStorageEnabled: true,
                     databaseEnabled: true,
                     cacheEnabled: true,
-                    // Kamera/mikrofon WebView seviyesinde engellendi
-                    mediaType: null,
                     userAgent:
                         'Mozilla/5.0 (Linux; Android 14; Pixel 8) '
                         'AppleWebKit/537.36 (KHTML, like Gecko) '
@@ -283,8 +274,7 @@ class _AppRootState extends State<AppRoot> {
                   onWebViewCreated: (controller) =>
                       _controller = controller,
 
-                  // ✅ KRİTİK: WebView kamera/mikrofon isteklerini REDDET
-                  // Bu popup'ı tamamen kaldırır
+                  // Kamera/mikrofon isteklerini reddet
                   onPermissionRequest: (controller, request) async {
                     return PermissionResponse(
                       resources: request.resources,
@@ -301,17 +291,10 @@ class _AppRootState extends State<AppRoot> {
                     if (_isExternalUrl(url)) {
                       try {
                         final uri = Uri.parse(url);
-                        // Önce external app (Telegram vs), olmazsa browser
-                        final launched = await launchUrl(
+                        await launchUrl(
                           uri,
                           mode: LaunchMode.externalApplication,
                         );
-                        if (!launched) {
-                          await launchUrl(
-                            uri,
-                            mode: LaunchMode.externalNonBrowserApplication,
-                          );
-                        }
                       } catch (_) {}
                       return NavigationActionPolicy.CANCEL;
                     }
@@ -358,8 +341,6 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Logo — assets/logo.png dosyan buraya gelecek
-            // Yoksa mavi BTC ikonu gösterir
             ClipRRect(
               borderRadius: BorderRadius.circular(24),
               child: Image.asset(
