@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -48,18 +49,13 @@ bool _isExternalUrl(String url) {
   if (url.isEmpty) return false;
   final uri = Uri.tryParse(url);
   if (uri == null) return false;
-
   const externalSchemes = ['tg', 'tel', 'mailto', 'intent', 'market'];
   if (externalSchemes.contains(uri.scheme)) return true;
-
   if (uri.host == 't.me' ||
       uri.host.endsWith('.t.me') ||
       uri.host == 'telegram.me') return true;
-
   if (uri.scheme != 'http' && uri.scheme != 'https') return true;
-
   if (uri.host.contains('btcmorning.com')) return false;
-
   return true;
 }
 
@@ -156,20 +152,16 @@ class _AppRootState extends State<AppRoot> {
       final request = await client.getUrl(uri);
       final response = await request.close();
       if (response.statusCode != 200) return;
-
       final body = await response.transform(utf8.decoder).join();
       final json = jsonDecode(body) as Map<String, dynamic>;
       if (json['success'] != true) return;
       if ((json['new_count'] as int? ?? 0) == 0) return;
-
       final items = json['items'] as List<dynamic>? ?? [];
       if (items.isEmpty) return;
-
       final item = items.first as Map<String, dynamic>;
       final label = item['label'] as String? ?? '🔔 BTCMarketPro';
       final title = item['title'] as String? ?? '';
       if (title.isNotEmpty) await _showNotification(label, title);
-
       _lastChecked = json['checked_at'] as int? ??
           DateTime.now().millisecondsSinceEpoch ~/ 1000;
     } catch (_) {}
@@ -274,7 +266,7 @@ class _AppRootState extends State<AppRoot> {
                   onWebViewCreated: (controller) =>
                       _controller = controller,
 
-                  // Kamera/mikrofon isteklerini reddet
+                  // Kamera/mikrofon WebView isteklerini reddet
                   onPermissionRequest: (controller, request) async {
                     return PermissionResponse(
                       resources: request.resources,
@@ -287,7 +279,6 @@ class _AppRootState extends State<AppRoot> {
                     final url =
                         navigationAction.request.url?.toString() ?? '';
                     if (url.isEmpty) return NavigationActionPolicy.ALLOW;
-
                     if (_isExternalUrl(url)) {
                       try {
                         final uri = Uri.parse(url);
@@ -328,7 +319,7 @@ class _AppRootState extends State<AppRoot> {
   }
 }
 
-// ── SplashScreen ──────────────────────────────────────────────────────────────
+// ── SplashScreen — Bitcoin ₿ sembolü ─────────────────────────────────────────
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -341,24 +332,25 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(24),
-              child: Image.asset(
-                'assets/logo.png',
-                width: 110,
-                height: 110,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => Container(
-                  width: 110,
-                  height: 110,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D1F3C),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: const Icon(
-                    Icons.currency_bitcoin,
-                    size: 70,
+            // ₿ Bitcoin sembolü — logo.png yok, direkt icon
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: const Color(0xFF0D1F3C),
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: const Color(0xFF1A6FFF).withOpacity(0.3),
+                  width: 1.5,
+                ),
+              ),
+              child: const Center(
+                child: Text(
+                  '₿',
+                  style: TextStyle(
                     color: Color(0xFF1A6FFF),
+                    fontSize: 58,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
