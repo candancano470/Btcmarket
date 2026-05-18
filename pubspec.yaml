@@ -11,7 +11,6 @@ dependencies:
     sdk: flutter
   flutter_inappwebview: ^6.1.5
   connectivity_plus: ^6.0.5
-  image_picker: ^1.1.2
   url_launcher: ^6.3.0
   flutter_local_notifications: ^17.2.4
 
@@ -28,7 +27,7 @@ flutter_native_splash:
   fullscreen: true
   android_12:
     color: "#071330"
-    icon_background_color: "#071330"
+    icon_background_color: "#071130"
 
 flutter:
   uses-material-design: true
