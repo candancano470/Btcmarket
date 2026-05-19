@@ -74,10 +74,48 @@ android {
         checkReleaseBuilds false
         abortOnError false
     }
+
+    // flutter_inappwebview'in kamera iznini merged manifest'ten zorla sil
+    configurations.all {
+        resolutionStrategy {
+            force "androidx.core:core:1.13.1"
+        }
+    }
 }
 
 flutter {
     source "../.."
+}
+
+// Merged manifest'ten CAMERA iznini build sırasında sil
+tasks.whenTaskAdded { task ->
+    if (task.name.contains("process") && task.name.contains("Manifest")) {
+        task.doLast {
+            def manifestFile = task.outputs.files.find {
+                it.name == "AndroidManifest.xml"
+            }
+            if (manifestFile && manifestFile.exists()) {
+                def content = manifestFile.text
+                content = content.replace(
+                    '<uses-permission android:name="android.permission.CAMERA"/>',
+                    ''
+                )
+                content = content.replace(
+                    '<uses-permission android:name="android.permission.CAMERA" />',
+                    ''
+                )
+                content = content.replace(
+                    '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
+                    ''
+                )
+                content = content.replace(
+                    '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
+                    ''
+                )
+                manifestFile.text = content
+            }
+        }
+    }
 }
 
 dependencies {
