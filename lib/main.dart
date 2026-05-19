@@ -9,7 +9,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'background_service.dart';
 
 final FlutterLocalNotificationsPlugin _notifPlugin =
@@ -61,33 +60,8 @@ bool _isExternalUrl(String url) {
   return true;
 }
 
-// ✅ JS Bridge: file input tıklamalarını yakalar, Flutter image_picker'a yönlendirir
-// onShowFileChooser olmadan v6.1.5 ile çalışır
 const String _filePickerScript = '''
 (function() {
-  // getUserMedia otomatik engelleyici
-  try {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-      window._btcUserInteracted = false;
-      function setInteracted() {
-        window._btcUserInteracted = true;
-        clearTimeout(window._btcTimer);
-        window._btcTimer = setTimeout(function() { window._btcUserInteracted = false; }, 10000);
-      }
-      document.addEventListener('click', setInteracted, true);
-      document.addEventListener('touchend', setInteracted, true);
-      navigator.mediaDevices.getUserMedia = function(constraints) {
-        if (window._btcUserInteracted) {
-          window._btcUserInteracted = false;
-          return _original(constraints);
-        }
-        return Promise.reject(new DOMException('Permission denied by policy', 'NotAllowedError'));
-      };
-    }
-  } catch(e) {}
-
-  // File input tıklamalarını yakala → Flutter'a yönlendir
   var _origClick = HTMLInputElement.prototype.click;
   HTMLInputElement.prototype.click = function() {
     var el = this;
@@ -105,7 +79,7 @@ const String _filePickerScript = '''
           el.dispatchEvent(new Event('input', { bubbles: true }));
         });
       }).catch(function() {});
-      return; // native file chooser'ı engelle
+      return;
     }
     return _origClick.apply(this, arguments);
   };
@@ -268,8 +242,7 @@ class _AppRootState extends State<AppRoot> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8)),
             ),
-            child:
-                const Text('Yes', style: TextStyle(color: Colors.white)),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -284,7 +257,6 @@ class _AppRootState extends State<AppRoot> {
     super.dispose();
   }
 
-  // ✅ JS handler: kamera/galeri seçimi Flutter tarafında yapılır
   void _registerJsHandlers(InAppWebViewController controller) {
     controller.addJavaScriptHandler(
       handlerName: 'btcPickImage',
@@ -295,9 +267,6 @@ class _AppRootState extends State<AppRoot> {
           XFile? file;
 
           if (source == 'camera') {
-            // Kamera izni SADECE burada, SADECE kullanıcı basınca
-            final status = await Permission.camera.request();
-            if (!status.isGranted) return null;
             file = await picker.pickImage(
               source: ImageSource.camera,
               imageQuality: 85,
@@ -313,7 +282,6 @@ class _AppRootState extends State<AppRoot> {
 
           if (file == null) return null;
 
-          // Base64 olarak WebView'a gönder
           final bytes = await file.readAsBytes();
           final b64 = base64Encode(bytes);
           return 'data:image/jpeg;base64,$b64';
@@ -344,8 +312,7 @@ class _AppRootState extends State<AppRoot> {
                 _ErrorWidget(onRetry: _reloadPage)
               else
                 InAppWebView(
-                  initialUrlRequest:
-                      URLRequest(url: WebUri(_homeUrl)),
+                  initialUrlRequest: URLRequest(url: WebUri(_homeUrl)),
                   initialUserScripts: _userScripts,
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
@@ -364,18 +331,14 @@ class _AppRootState extends State<AppRoot> {
                   ),
                   onWebViewCreated: (controller) {
                     _controller = controller;
-                    // JS handler'ları kaydet
                     _registerJsHandlers(controller);
                   },
-
-                  // ✅ getUserMedia tamamen reddedilir — startup'ta izin dialogu çıkmaz
                   onPermissionRequest: (controller, request) async {
                     return PermissionResponse(
                       resources: request.resources,
                       action: PermissionResponseAction.DENY,
                     );
                   },
-
                   shouldOverrideUrlLoading:
                       (controller, navigationAction) async {
                     final url =
@@ -390,7 +353,6 @@ class _AppRootState extends State<AppRoot> {
                     }
                     return NavigationActionPolicy.ALLOW;
                   },
-
                   onLoadStop: (controller, url) async {
                     if (!mounted) return;
                     setState(() {
@@ -398,7 +360,6 @@ class _AppRootState extends State<AppRoot> {
                       _hasError = false;
                     });
                   },
-
                   onReceivedError: (controller, request, error) {
                     if (!mounted) return;
                     if (request.isForMainFrame ?? false) {
