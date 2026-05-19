@@ -116,6 +116,34 @@ class _AppRootState extends State<AppRoot> {
   static const String _notifyUrl =
       'https://www.btcmorning.com/wp-content/plugins/btcmarketpro/notify_check.php';
 
+  // Sayfa yüklenirken otomatik getUserMedia'yı engelleyen JS
+  // Kullanıcı butona basınca normal çalışır
+  static const String _blockAutoGetUserMedia = '''
+    (function() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+      
+      var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      window._btcUserInteracted = false;
+      
+      document.addEventListener('click', function() {
+        window._btcUserInteracted = true;
+        setTimeout(function() { window._btcUserInteracted = false; }, 8000);
+      }, true);
+      
+      document.addEventListener('touchend', function() {
+        window._btcUserInteracted = true;
+        setTimeout(function() { window._btcUserInteracted = false; }, 8000);
+      }, true);
+      
+      navigator.mediaDevices.getUserMedia = function(constraints) {
+        if (window._btcUserInteracted) {
+          return _original(constraints);
+        }
+        return Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+      };
+    })();
+  ''';
+
   @override
   void initState() {
     super.initState();
@@ -264,26 +292,30 @@ class _AppRootState extends State<AppRoot> {
                         'AppleWebKit/537.36 (KHTML, like Gecko) '
                         'Chrome/124.0.0.0 Mobile Safari/537.36',
                   ),
-                  onWebViewCreated: (controller) =>
-                      _controller = controller,
+                  onWebViewCreated: (controller) {
+                    _controller = controller;
+                  },
 
-                  // Kamera: ALLOW (profil/hikaye fotoğrafı)
-                  // Mikrofon: DENY (ses kaydı yok)
+                  onLoadStart: (controller, url) async {
+                    // Sayfa yüklenirken otomatik kamera isteklerini engelle
+                    await controller.evaluateJavascript(
+                        source: _blockAutoGetUserMedia);
+                  },
+
+                  // Kamera: sadece kamera istendi ve kullanıcı etkileşimi varsa izin ver
+                  // Mikrofon: her zaman reddet
                   onPermissionRequest: (controller, request) async {
-                    final hasMic = request.resources.contains(
-                        PermissionResourceType.MICROPHONE);
-                    final hasCamera = request.resources.contains(
-                        PermissionResourceType.CAMERA);
+                    final hasMic = request.resources
+                        .contains(PermissionResourceType.MICROPHONE);
+                    final hasCamera = request.resources
+                        .contains(PermissionResourceType.CAMERA);
 
-                    // Sadece kamera istendi → izin ver
                     if (hasCamera && !hasMic) {
                       return PermissionResponse(
                         resources: request.resources,
                         action: PermissionResponseAction.GRANT,
                       );
                     }
-
-                    // Mikrofon içeriyorsa → reddet
                     return PermissionResponse(
                       resources: request.resources,
                       action: PermissionResponseAction.DENY,
