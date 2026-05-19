@@ -8,9 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
 
-    <!-- Kamera: profil/hikaye fotoğrafı için gerekli -->
-    <!-- Açılışta SORULMAZ — sadece kullanıcı içeride fotoğraf yüklemeye -->
-    <!-- çalıştığında WebView otomatik sorar -->
+    <!-- Kamera: story ve profil fotoğrafı için -->
     <uses-permission android:name="android.permission.CAMERA"/>
     <uses-feature
         android:name="android.hardware.camera"
