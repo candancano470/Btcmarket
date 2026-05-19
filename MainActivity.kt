@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.webkit.PermissionRequest
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.app.ActivityCompat
@@ -21,10 +22,33 @@ class MainActivity : FlutterActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
-        // Sadece bildirim izni açılışta iste
-        // Kamera izni ASLA açılışta istenmez
-        // Kullanıcı profil/hikaye fotoğrafı yüklerken WebView otomatik sorar
+        // Sadece bildirim izni - kamera asla
         requestNotificationPermission()
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        // Kamera izni isteği gelirse native seviyede reddet
+        val filteredPermissions = mutableListOf<String>()
+        val filteredResults = mutableListOf<Int>()
+
+        permissions.forEachIndexed { index, permission ->
+            if (permission != Manifest.permission.CAMERA &&
+                permission != Manifest.permission.RECORD_AUDIO
+            ) {
+                filteredPermissions.add(permission)
+                filteredResults.add(grantResults[index])
+            }
+        }
+
+        super.onRequestPermissionsResult(
+            requestCode,
+            filteredPermissions.toTypedArray(),
+            filteredResults.toIntArray()
+        )
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
