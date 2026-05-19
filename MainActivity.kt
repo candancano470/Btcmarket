@@ -21,6 +21,9 @@ class MainActivity : FlutterActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
+        // Sadece bildirim izni açılışta iste
+        // Kamera izni ASLA açılışta istenmez
+        // Kullanıcı profil/hikaye fotoğrafı yüklerken WebView otomatik sorar
         requestNotificationPermission()
     }
 
