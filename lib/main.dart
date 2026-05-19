@@ -62,6 +62,23 @@ bool _isExternalUrl(String url) {
 
 const String _filePickerScript = '''
 (function() {
+  // getUserMedia her koşulda tamamen engellendi — dialog çıkmaz
+  try {
+    if (navigator.mediaDevices) {
+      navigator.mediaDevices.getUserMedia = function() {
+        return Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+      };
+      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
+        writable: false, configurable: false
+      });
+    }
+    navigator.getUserMedia = function(c, s, e) {
+      if (e) e(new DOMException('Permission denied', 'NotAllowedError'));
+    };
+    window.getUserMedia = navigator.getUserMedia;
+  } catch(e) {}
+
+  // File input → Flutter image_picker
   var _origClick = HTMLInputElement.prototype.click;
   HTMLInputElement.prototype.click = function() {
     var el = this;
