@@ -8,6 +8,8 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'background_service.dart';
 
 final FlutterLocalNotificationsPlugin _notifPlugin =
@@ -59,19 +61,14 @@ bool _isExternalUrl(String url) {
   return true;
 }
 
-// ✅ KRİTİK: AT_DOCUMENT_START ile sayfa JS'den ÖNCE inject edilir
-// getUserMedia otomatik çağrıları engellenir
-// Kullanıcı kamera butonuna basınca normal çalışır
 final _userScripts = UnmodifiableListView<UserScript>([
   UserScript(
     source: '''
       (function() {
         try {
           if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-          
           var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
           window._btcUserInteracted = false;
-          
           function setInteracted() {
             window._btcUserInteracted = true;
             clearTimeout(window._btcTimer);
@@ -79,24 +76,19 @@ final _userScripts = UnmodifiableListView<UserScript>([
               window._btcUserInteracted = false;
             }, 10000);
           }
-          
           document.addEventListener('click', setInteracted, true);
           document.addEventListener('touchend', setInteracted, true);
           document.addEventListener('touchstart', setInteracted, true);
-          
           navigator.mediaDevices.getUserMedia = function(constraints) {
             if (window._btcUserInteracted) {
               window._btcUserInteracted = false;
               return _original(constraints);
             }
-            console.log('[BTCMarketPro] Auto getUserMedia blocked');
             return Promise.reject(
               new DOMException('Permission denied by policy', 'NotAllowedError')
             );
           };
-        } catch(e) {
-          console.log('[BTCMarketPro] Script error: ' + e);
-        }
+        } catch(e) {}
       })();
     ''',
     injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
@@ -232,32 +224,23 @@ class _AppRootState extends State<AppRoot> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Exit App',
-          style: TextStyle(
-              color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        content: const Text(
-          'Are you sure you want to exit BTCMarketPro?',
-          style: TextStyle(color: Colors.white70),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Exit App',
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to exit BTCMarketPro?',
+            style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('No',
-                style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Yes',
-                style: TextStyle(color: Colors.white)),
+            child: const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -292,8 +275,7 @@ class _AppRootState extends State<AppRoot> {
                 _ErrorWidget(onRetry: _reloadPage)
               else
                 InAppWebView(
-                  initialUrlRequest:
-                      URLRequest(url: WebUri(_homeUrl)),
+                  initialUrlRequest: URLRequest(url: WebUri(_homeUrl)),
                   initialUserScripts: _userScripts,
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
@@ -314,24 +296,46 @@ class _AppRootState extends State<AppRoot> {
                     _controller = controller;
                   },
 
-                  // Kamera: kullanıcı etkileşimi sonrası izin ver
-                  // Mikrofon: her zaman reddet
+                  // ✅ getUserMedia tamamen reddedilir — startup'ta izin dialogu çıkmaz
                   onPermissionRequest: (controller, request) async {
-                    final hasMic = request.resources
-                        .contains(PermissionResourceType.MICROPHONE);
-                    final hasCamera = request.resources
-                        .contains(PermissionResourceType.CAMERA);
-
-                    if (hasCamera && !hasMic) {
-                      return PermissionResponse(
-                        resources: request.resources,
-                        action: PermissionResponseAction.GRANT,
-                      );
-                    }
                     return PermissionResponse(
                       resources: request.resources,
                       action: PermissionResponseAction.DENY,
                     );
+                  },
+
+                  // ✅ Kullanıcı GALLERY/CAMERA butonuna basınca tetiklenir
+                  // Kamera izni SADECE burada, SADECE o an sorulur
+                  onShowFileChooser: (controller, fileChooserParams) async {
+                    try {
+                      final picker = ImagePicker();
+                      final captureEnabled =
+                          fileChooserParams.captureEnabled ?? false;
+                      XFile? file;
+
+                      if (captureEnabled) {
+                        // CAMERA butonu
+                        final status = await Permission.camera.request();
+                        if (!status.isGranted) return [];
+                        file = await picker.pickImage(
+                          source: ImageSource.camera,
+                          imageQuality: 85,
+                          maxWidth: 1920,
+                          maxHeight: 1920,
+                        );
+                      } else {
+                        // GALLERY butonu
+                        file = await picker.pickImage(
+                          source: ImageSource.gallery,
+                          imageQuality: 85,
+                        );
+                      }
+
+                      if (file == null) return [];
+                      return [Uri.file(file.path)];
+                    } catch (_) {
+                      return [];
+                    }
                   },
 
                   shouldOverrideUrlLoading:
@@ -341,11 +345,8 @@ class _AppRootState extends State<AppRoot> {
                     if (url.isEmpty) return NavigationActionPolicy.ALLOW;
                     if (_isExternalUrl(url)) {
                       try {
-                        final uri = Uri.parse(url);
-                        await launchUrl(
-                          uri,
-                          mode: LaunchMode.externalApplication,
-                        );
+                        await launchUrl(Uri.parse(url),
+                            mode: LaunchMode.externalApplication);
                       } catch (_) {}
                       return NavigationActionPolicy.CANCEL;
                     }
@@ -465,22 +466,17 @@ class _NoInternetWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded,
-                  size: 72, color: Colors.white24),
+              const Icon(Icons.wifi_off_rounded, size: 72, color: Colors.white24),
               const SizedBox(height: 20),
-              const Text(
-                'No Internet Connection',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
+              const Text('No Internet Connection',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text(
-                'Please check your connection and try again.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
+              const Text('Please check your connection and try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white54, fontSize: 14)),
               const SizedBox(height: 28),
               ElevatedButton.icon(
                 onPressed: onRetry,
@@ -489,8 +485,7 @@ class _NoInternetWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -522,19 +517,15 @@ class _ErrorWidget extends StatelessWidget {
               const Icon(Icons.error_outline_rounded,
                   size: 72, color: Colors.redAccent),
               const SizedBox(height: 20),
-              const Text(
-                'Page Failed to Load',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold),
-              ),
+              const Text('Page Failed to Load',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text(
-                'Something went wrong. Please try again.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white54, fontSize: 14),
-              ),
+              const Text('Something went wrong. Please try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white54, fontSize: 14)),
               const SizedBox(height: 28),
               ElevatedButton.icon(
                 onPressed: onRetry,
@@ -543,8 +534,7 @@ class _ErrorWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
