@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.webkit.PermissionRequest
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.core.app.ActivityCompat
@@ -22,8 +21,30 @@ class MainActivity : FlutterActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
-        // Sadece bildirim izni - kamera asla
         requestNotificationPermission()
+    }
+
+    // ✅ CAMERA ve RECORD_AUDIO dialog göstermeden anında DENY
+    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
+        val blocked = setOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
+        val filtered = permissions.filter { it !in blocked }.toTypedArray()
+
+        if (filtered.isEmpty()) {
+            // Hepsini engelledi — dialog açmadan DENIED dön
+            onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                IntArray(permissions.size) { PackageManager.PERMISSION_DENIED }
+            )
+            return
+        }
+
+        if (filtered.size < permissions.size) {
+            // Karışık istek — sadece izin verilebilenleri sor
+            super.requestPermissions(filtered, requestCode)
+        } else {
+            super.requestPermissions(permissions, requestCode)
+        }
     }
 
     override fun onRequestPermissionsResult(
@@ -31,24 +52,7 @@ class MainActivity : FlutterActivity() {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        // Kamera izni isteği gelirse native seviyede reddet
-        val filteredPermissions = mutableListOf<String>()
-        val filteredResults = mutableListOf<Int>()
-
-        permissions.forEachIndexed { index, permission ->
-            if (permission != Manifest.permission.CAMERA &&
-                permission != Manifest.permission.RECORD_AUDIO
-            ) {
-                filteredPermissions.add(permission)
-                filteredResults.add(grantResults[index])
-            }
-        }
-
-        super.onRequestPermissionsResult(
-            requestCode,
-            filteredPermissions.toTypedArray(),
-            filteredResults.toIntArray()
-        )
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
