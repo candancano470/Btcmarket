@@ -61,36 +61,60 @@ bool _isExternalUrl(String url) {
   return true;
 }
 
+// ✅ JS Bridge: file input tıklamalarını yakalar, Flutter image_picker'a yönlendirir
+// onShowFileChooser olmadan v6.1.5 ile çalışır
+const String _filePickerScript = '''
+(function() {
+  // getUserMedia otomatik engelleyici
+  try {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      window._btcUserInteracted = false;
+      function setInteracted() {
+        window._btcUserInteracted = true;
+        clearTimeout(window._btcTimer);
+        window._btcTimer = setTimeout(function() { window._btcUserInteracted = false; }, 10000);
+      }
+      document.addEventListener('click', setInteracted, true);
+      document.addEventListener('touchend', setInteracted, true);
+      navigator.mediaDevices.getUserMedia = function(constraints) {
+        if (window._btcUserInteracted) {
+          window._btcUserInteracted = false;
+          return _original(constraints);
+        }
+        return Promise.reject(new DOMException('Permission denied by policy', 'NotAllowedError'));
+      };
+    }
+  } catch(e) {}
+
+  // File input tıklamalarını yakala → Flutter'a yönlendir
+  var _origClick = HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click = function() {
+    var el = this;
+    if (el.type === 'file' && (el.accept || '').indexOf('image') !== -1) {
+      var capture = el.capture || el.getAttribute('capture') || '';
+      var source = capture ? 'camera' : 'gallery';
+      window.flutter_inappwebview.callHandler('btcPickImage', source).then(function(dataUrl) {
+        if (!dataUrl) return;
+        fetch(dataUrl).then(function(r) { return r.blob(); }).then(function(blob) {
+          var file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
+          var dt = new DataTransfer();
+          dt.items.add(file);
+          el.files = dt.files;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+        });
+      }).catch(function() {});
+      return; // native file chooser'ı engelle
+    }
+    return _origClick.apply(this, arguments);
+  };
+})();
+''';
+
 final _userScripts = UnmodifiableListView<UserScript>([
   UserScript(
-    source: '''
-      (function() {
-        try {
-          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-          var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-          window._btcUserInteracted = false;
-          function setInteracted() {
-            window._btcUserInteracted = true;
-            clearTimeout(window._btcTimer);
-            window._btcTimer = setTimeout(function() {
-              window._btcUserInteracted = false;
-            }, 10000);
-          }
-          document.addEventListener('click', setInteracted, true);
-          document.addEventListener('touchend', setInteracted, true);
-          document.addEventListener('touchstart', setInteracted, true);
-          navigator.mediaDevices.getUserMedia = function(constraints) {
-            if (window._btcUserInteracted) {
-              window._btcUserInteracted = false;
-              return _original(constraints);
-            }
-            return Promise.reject(
-              new DOMException('Permission denied by policy', 'NotAllowedError')
-            );
-          };
-        } catch(e) {}
-      })();
-    ''',
+    source: _filePickerScript,
     injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
   ),
 ]);
@@ -224,23 +248,28 @@ class _AppRootState extends State<AppRoot> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Exit App',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style:
+                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to exit BTCMarketPro?',
             style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('No',
+                style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
-            child: const Text('Yes', style: TextStyle(color: Colors.white)),
+            child:
+                const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -253,6 +282,46 @@ class _AppRootState extends State<AppRoot> {
     _connectivitySub.cancel();
     _notifTimer?.cancel();
     super.dispose();
+  }
+
+  // ✅ JS handler: kamera/galeri seçimi Flutter tarafında yapılır
+  void _registerJsHandlers(InAppWebViewController controller) {
+    controller.addJavaScriptHandler(
+      handlerName: 'btcPickImage',
+      callback: (args) async {
+        final source = args.isNotEmpty ? args[0] as String : 'gallery';
+        try {
+          final picker = ImagePicker();
+          XFile? file;
+
+          if (source == 'camera') {
+            // Kamera izni SADECE burada, SADECE kullanıcı basınca
+            final status = await Permission.camera.request();
+            if (!status.isGranted) return null;
+            file = await picker.pickImage(
+              source: ImageSource.camera,
+              imageQuality: 85,
+              maxWidth: 1920,
+              maxHeight: 1920,
+            );
+          } else {
+            file = await picker.pickImage(
+              source: ImageSource.gallery,
+              imageQuality: 85,
+            );
+          }
+
+          if (file == null) return null;
+
+          // Base64 olarak WebView'a gönder
+          final bytes = await file.readAsBytes();
+          final b64 = base64Encode(bytes);
+          return 'data:image/jpeg;base64,$b64';
+        } catch (_) {
+          return null;
+        }
+      },
+    );
   }
 
   @override
@@ -275,7 +344,8 @@ class _AppRootState extends State<AppRoot> {
                 _ErrorWidget(onRetry: _reloadPage)
               else
                 InAppWebView(
-                  initialUrlRequest: URLRequest(url: WebUri(_homeUrl)),
+                  initialUrlRequest:
+                      URLRequest(url: WebUri(_homeUrl)),
                   initialUserScripts: _userScripts,
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
@@ -294,6 +364,8 @@ class _AppRootState extends State<AppRoot> {
                   ),
                   onWebViewCreated: (controller) {
                     _controller = controller;
+                    // JS handler'ları kaydet
+                    _registerJsHandlers(controller);
                   },
 
                   // ✅ getUserMedia tamamen reddedilir — startup'ta izin dialogu çıkmaz
@@ -302,40 +374,6 @@ class _AppRootState extends State<AppRoot> {
                       resources: request.resources,
                       action: PermissionResponseAction.DENY,
                     );
-                  },
-
-                  // ✅ Kullanıcı GALLERY/CAMERA butonuna basınca tetiklenir
-                  // Kamera izni SADECE burada, SADECE o an sorulur
-                  onShowFileChooser: (controller, fileChooserParams) async {
-                    try {
-                      final picker = ImagePicker();
-                      final captureEnabled =
-                          fileChooserParams.captureEnabled ?? false;
-                      XFile? file;
-
-                      if (captureEnabled) {
-                        // CAMERA butonu
-                        final status = await Permission.camera.request();
-                        if (!status.isGranted) return [];
-                        file = await picker.pickImage(
-                          source: ImageSource.camera,
-                          imageQuality: 85,
-                          maxWidth: 1920,
-                          maxHeight: 1920,
-                        );
-                      } else {
-                        // GALLERY butonu
-                        file = await picker.pickImage(
-                          source: ImageSource.gallery,
-                          imageQuality: 85,
-                        );
-                      }
-
-                      if (file == null) return [];
-                      return [Uri.file(file.path)];
-                    } catch (_) {
-                      return [];
-                    }
                   },
 
                   shouldOverrideUrlLoading:
@@ -466,7 +504,8 @@ class _NoInternetWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 72, color: Colors.white24),
+              const Icon(Icons.wifi_off_rounded,
+                  size: 72, color: Colors.white24),
               const SizedBox(height: 20),
               const Text('No Internet Connection',
                   style: TextStyle(
@@ -485,7 +524,8 @@ class _NoInternetWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -534,15 +574,5 @@ class _ErrorWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 28, vertical: 12),
