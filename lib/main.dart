@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -58,6 +59,50 @@ bool _isExternalUrl(String url) {
   return true;
 }
 
+// ✅ KRİTİK: AT_DOCUMENT_START ile sayfa JS'den ÖNCE inject edilir
+// getUserMedia otomatik çağrıları engellenir
+// Kullanıcı kamera butonuna basınca normal çalışır
+final _userScripts = UnmodifiableListView<UserScript>([
+  UserScript(
+    source: '''
+      (function() {
+        try {
+          if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+          
+          var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+          window._btcUserInteracted = false;
+          
+          function setInteracted() {
+            window._btcUserInteracted = true;
+            clearTimeout(window._btcTimer);
+            window._btcTimer = setTimeout(function() {
+              window._btcUserInteracted = false;
+            }, 10000);
+          }
+          
+          document.addEventListener('click', setInteracted, true);
+          document.addEventListener('touchend', setInteracted, true);
+          document.addEventListener('touchstart', setInteracted, true);
+          
+          navigator.mediaDevices.getUserMedia = function(constraints) {
+            if (window._btcUserInteracted) {
+              window._btcUserInteracted = false;
+              return _original(constraints);
+            }
+            console.log('[BTCMarketPro] Auto getUserMedia blocked');
+            return Promise.reject(
+              new DOMException('Permission denied by policy', 'NotAllowedError')
+            );
+          };
+        } catch(e) {
+          console.log('[BTCMarketPro] Script error: ' + e);
+        }
+      })();
+    ''',
+    injectionTime: UserScriptInjectionTime.AT_DOCUMENT_START,
+  ),
+]);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _initNotifications();
@@ -115,34 +160,6 @@ class _AppRootState extends State<AppRoot> {
   static const String _homeUrl = 'https://www.btcmorning.com/btcmarketpro/';
   static const String _notifyUrl =
       'https://www.btcmorning.com/wp-content/plugins/btcmarketpro/notify_check.php';
-
-  // Sayfa yüklenirken otomatik getUserMedia'yı engelleyen JS
-  // Kullanıcı butona basınca normal çalışır
-  static const String _blockAutoGetUserMedia = '''
-    (function() {
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-      
-      var _original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-      window._btcUserInteracted = false;
-      
-      document.addEventListener('click', function() {
-        window._btcUserInteracted = true;
-        setTimeout(function() { window._btcUserInteracted = false; }, 8000);
-      }, true);
-      
-      document.addEventListener('touchend', function() {
-        window._btcUserInteracted = true;
-        setTimeout(function() { window._btcUserInteracted = false; }, 8000);
-      }, true);
-      
-      navigator.mediaDevices.getUserMedia = function(constraints) {
-        if (window._btcUserInteracted) {
-          return _original(constraints);
-        }
-        return Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
-      };
-    })();
-  ''';
 
   @override
   void initState() {
@@ -277,6 +294,7 @@ class _AppRootState extends State<AppRoot> {
                 InAppWebView(
                   initialUrlRequest:
                       URLRequest(url: WebUri(_homeUrl)),
+                  initialUserScripts: _userScripts,
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
                     mediaPlaybackRequiresUserGesture: true,
@@ -296,13 +314,7 @@ class _AppRootState extends State<AppRoot> {
                     _controller = controller;
                   },
 
-                  onLoadStart: (controller, url) async {
-                    // Sayfa yüklenirken otomatik kamera isteklerini engelle
-                    await controller.evaluateJavascript(
-                        source: _blockAutoGetUserMedia);
-                  },
-
-                  // Kamera: sadece kamera istendi ve kullanıcı etkileşimi varsa izin ver
+                  // Kamera: kullanıcı etkileşimi sonrası izin ver
                   // Mikrofon: her zaman reddet
                   onPermissionRequest: (controller, request) async {
                     final hasMic = request.resources
