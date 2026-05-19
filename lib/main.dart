@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
@@ -190,9 +189,11 @@ class _AppRootState extends State<AppRoot> {
         backgroundColor: const Color(0xFF0D1F3C),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16)),
-        title: const Text('Exit App',
-            style: TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text(
+          'Exit App',
+          style: TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold),
+        ),
         content: const Text(
           'Are you sure you want to exit BTCMarketPro?',
           style: TextStyle(color: Colors.white70),
@@ -266,8 +267,23 @@ class _AppRootState extends State<AppRoot> {
                   onWebViewCreated: (controller) =>
                       _controller = controller,
 
-                  // Kamera/mikrofon WebView isteklerini reddet
+                  // Kamera: ALLOW (profil/hikaye fotoğrafı)
+                  // Mikrofon: DENY (ses kaydı yok)
                   onPermissionRequest: (controller, request) async {
+                    final hasMic = request.resources.contains(
+                        PermissionResourceType.MICROPHONE);
+                    final hasCamera = request.resources.contains(
+                        PermissionResourceType.CAMERA);
+
+                    // Sadece kamera istendi → izin ver
+                    if (hasCamera && !hasMic) {
+                      return PermissionResponse(
+                        resources: request.resources,
+                        action: PermissionResponseAction.GRANT,
+                      );
+                    }
+
+                    // Mikrofon içeriyorsa → reddet
                     return PermissionResponse(
                       resources: request.resources,
                       action: PermissionResponseAction.DENY,
@@ -319,7 +335,7 @@ class _AppRootState extends State<AppRoot> {
   }
 }
 
-// ── SplashScreen — Bitcoin ₿ sembolü ─────────────────────────────────────────
+// ── SplashScreen ──────────────────────────────────────────────────────────────
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -332,7 +348,6 @@ class SplashScreen extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // ₿ Bitcoin sembolü — logo.png yok, direkt icon
             Container(
               width: 100,
               height: 100,
