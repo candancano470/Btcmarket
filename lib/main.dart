@@ -81,7 +81,7 @@ const String _filePickerScript = '''
   HTMLInputElement.prototype.click = function() {
     var el = this;
     if (el.type === 'file' && (el.accept || '').indexOf('image') !== -1) {
-      window.flutter_inappwebview.callHandler('btcPickImage', 'gallery').then(function(dataUrl) {
+      window.flutter_inappwebview.callHandler('btcPickImage', el.capture ? 'camera' : 'gallery').then(function(dataUrl) {
         if (!dataUrl) return;
         fetch(dataUrl).then(function(r) { return r.blob(); }).then(function(blob) {
           var file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
@@ -157,6 +157,7 @@ class _AppRootState extends State<AppRoot> {
   bool _hasInternet = true;
   late StreamSubscription<List<ConnectivityResult>> _connectivitySub;
 
+  bool _pollingStarted = false;
   Timer? _notifTimer;
   int _lastChecked = 0;
 
@@ -179,15 +180,15 @@ class _AppRootState extends State<AppRoot> {
     Future.delayed(const Duration(seconds: 10), () {
       if (mounted && _showSplash) setState(() => _showSplash = false);
     });
-
-    _startForegroundPolling();
   }
 
   void _startForegroundPolling() {
+    if (_pollingStarted) return;
+    _pollingStarted = true;
+    Future.delayed(const Duration(seconds: 5), _checkForNotifications);
     _notifTimer = Timer.periodic(const Duration(minutes: 2), (_) async {
       await _checkForNotifications();
     });
-    Future.delayed(const Duration(seconds: 15), _checkForNotifications);
   }
 
   Future<void> _checkForNotifications() async {
@@ -218,6 +219,7 @@ class _AppRootState extends State<AppRoot> {
     setState(() {
       _hasError = false;
       _showSplash = true;
+      _pollingStarted = false;
     });
     await _controller?.reload();
   }
@@ -235,25 +237,21 @@ class _AppRootState extends State<AppRoot> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Exit App',
-            style:
-                TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         content: const Text('Are you sure you want to exit BTCMarketPro?',
             style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('No',
-                style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
@@ -270,25 +268,73 @@ class _AppRootState extends State<AppRoot> {
     super.dispose();
   }
 
+  Future<String?> _pickImageWithSource() async {
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: const Color(0xFF0D1F3C),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 16),
+                decoration: BoxDecoration(
+                  color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.camera_alt_rounded,
+                    color: Color(0xFF1A6FFF)),
+                title: const Text('Camera',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded,
+                    color: Color(0xFF1A6FFF)),
+                title: const Text('Gallery',
+                    style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (source == null) return null;
+
+    try {
+      final picker = ImagePicker();
+      final file = await picker.pickImage(
+        source: source,
+        imageQuality: 85,
+        maxWidth: 1920,
+        maxHeight: 1920,
+      );
+      if (file == null) return null;
+      final bytes = await file.readAsBytes();
+      final b64 = base64Encode(bytes);
+      return 'data:image/jpeg;base64,$b64';
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _registerJsHandlers(InAppWebViewController controller) {
     controller.addJavaScriptHandler(
       handlerName: 'btcPickImage',
       callback: (args) async {
-        try {
-          final picker = ImagePicker();
-          final file = await picker.pickImage(
-            source: ImageSource.gallery,
-            imageQuality: 85,
-            maxWidth: 1920,
-            maxHeight: 1920,
-          );
-          if (file == null) return null;
-          final bytes = await file.readAsBytes();
-          final b64 = base64Encode(bytes);
-          return 'data:image/jpeg;base64,$b64';
-        } catch (_) {
-          return null;
-        }
+        return await _pickImageWithSource();
       },
     );
   }
@@ -356,12 +402,10 @@ class _AppRootState extends State<AppRoot> {
                   },
                   onLoadStop: (controller, url) async {
                     if (!mounted) return;
-
-                    // Sayfa yüklendi → startup engeli kaldır
+                    _startForegroundPolling();
                     try {
                       await _permChannel.invokeMethod('setAppReady');
                     } catch (_) {}
-
                     setState(() {
                       _showSplash = false;
                       _hasError = false;
@@ -468,8 +512,7 @@ class _NoInternetWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded,
-                  size: 72, color: Colors.white24),
+              const Icon(Icons.wifi_off_rounded, size: 72, color: Colors.white24),
               const SizedBox(height: 20),
               const Text('No Internet Connection',
                   style: TextStyle(
@@ -488,8 +531,7 @@ class _NoInternetWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -536,16 +578,6 @@ class _ErrorWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 28, vertical: 12),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+                
