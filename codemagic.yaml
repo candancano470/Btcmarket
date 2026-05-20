@@ -26,6 +26,14 @@ workflows:
       - name: Paketleri Yükle
         script: flutter pub get
 
+      - name: flutter_inappwebview CAMERA Patch
+        script: |
+          CHROME_CLIENT=$(find $HOME/.pub-cache -path "*flutter_inappwebview_android*" -name "InAppWebViewChromeClient.java" | head -1)
+          echo "Patching: $CHROME_CLIENT"
+          sed -i 's/public void onPermissionRequest(final PermissionRequest request) {/public void onPermissionRequest(final PermissionRequest request) {\n        for (String r : request.getResources()) {\n            if (r.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE) || r.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {\n                request.deny();\n                return;\n            }\n        }/g' "$CHROME_CLIENT"
+          echo "✅ Patch tamamlandı"
+          grep -n "request.deny" "$CHROME_CLIENT" | head -5
+
       - name: Splash Screen Oluştur
         script: |
           cd $CM_BUILD_DIR
