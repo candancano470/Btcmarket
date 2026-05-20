@@ -11,11 +11,17 @@ import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugin.common.PluginRegistry
 
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
+
+    private val BLOCKED = setOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.RECORD_AUDIO
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -24,13 +30,26 @@ class MainActivity : FlutterActivity() {
         requestNotificationPermission()
     }
 
-    // ✅ CAMERA ve RECORD_AUDIO dialog göstermeden anında DENY
-    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        val blocked = setOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
-        val filtered = permissions.filter { it !in blocked }.toTypedArray()
-
+    override fun requestPermissions(
+        permissions: Array<String>,
+        requestCode: Int,
+        resultCallback: PluginRegistry.RequestPermissionsResultListener
+    ) {
+        val filtered = permissions.filter { it !in BLOCKED }.toTypedArray()
         if (filtered.isEmpty()) {
-            // Hepsini engelledi — dialog açmadan DENIED dön
+            resultCallback.onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                IntArray(permissions.size) { PackageManager.PERMISSION_DENIED }
+            )
+            return
+        }
+        super.requestPermissions(filtered, requestCode, resultCallback)
+    }
+
+    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
+        val filtered = permissions.filter { it !in BLOCKED }.toTypedArray()
+        if (filtered.isEmpty()) {
             onRequestPermissionsResult(
                 requestCode,
                 permissions,
@@ -38,13 +57,7 @@ class MainActivity : FlutterActivity() {
             )
             return
         }
-
-        if (filtered.size < permissions.size) {
-            // Karışık istek — sadece izin verilebilenleri sor
-            super.requestPermissions(filtered, requestCode)
-        } else {
-            super.requestPermissions(permissions, requestCode)
-        }
+        super.requestPermissions(filtered, requestCode)
     }
 
     override fun onRequestPermissionsResult(
