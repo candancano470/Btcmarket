@@ -1,15 +1,13 @@
 package com.btcmorning.btcmarketpro
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.webkit.PermissionRequest
+import android.os.Handler
+import android.os.Looper
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultRegistry
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -22,128 +20,129 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
 
-    private val BLOCKED = setOf(
+    /**
+     * Startup fazı flag'i.
+     * true  → uygulama henüz yükleniyor, kamera/mikrofon dialog'u engellenir
+     * false → kullanıcı uygulama içinde gerçekten izin isteyebilir
+     *
+     * İki şekilde false yapılır:
+     *   1. Dart tarafı "setAppReady" channel çağrısı (WebView onLoadStop)
+     *   2. Fallback: 5 saniye sonra otomatik
+     */
+    @Volatile
+    private var startupBlocked = true
+
+    private val startupHandler = Handler(Looper.getMainLooper())
+
+    // Startup'ta engellenmesi gereken izinler
+    private val STARTUP_BLOCKED_PERMS = setOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO
     )
 
-    // ContextWrapper ile tüm checkSelfPermission çağrılarını yakala
-    override fun attachBaseContext(newBase: Context) {
-        super.attachBaseContext(BlockingContext(newBase))
-    }
-
-    // Activity seviyesinde checkSelfPermission override
-    override fun checkSelfPermission(permission: String): Int {
-        if (permission in BLOCKED) return PackageManager.PERMISSION_DENIED
-        return super.checkSelfPermission(permission)
-    }
-
-    // Context seviyesinde checkPermission override
-    override fun checkPermission(permission: String, pid: Int, uid: Int): Int {
-        if (permission in BLOCKED) return PackageManager.PERMISSION_DENIED
-        return super.checkPermission(permission, pid, uid)
-    }
-
-    // ActivityResultLauncher tabanlı izin isteklerini yakala (flutter_inappwebview 6.x)
-    private val blockedRegistry: ActivityResultRegistry by lazy {
-        object : ActivityResultRegistry() {
-            override fun <I, O> onLaunch(
-                requestCode: Int,
-                contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
-                input: I,
-                options: androidx.core.app.ActivityOptionsCompat?
-            ) {
-                if (contract is ActivityResultContracts.RequestMultiplePermissions) {
-                    @Suppress("UNCHECKED_CAST")
-                    val perms = input as? Array<String> ?: emptyArray()
-                    if (perms.any { it in BLOCKED }) {
-                        val result = perms.associateWith { it !in BLOCKED }
-                        @Suppress("UNCHECKED_CAST")
-                        dispatchResult(requestCode, result as O)
-                        return
-                    }
-                } else if (contract is ActivityResultContracts.RequestPermission) {
-                    val perm = input as? String
-                    if (perm != null && perm in BLOCKED) {
-                        @Suppress("UNCHECKED_CAST")
-                        dispatchResult(requestCode, false as O)
-                        return
-                    }
-                }
-                super.onLaunch(requestCode, contract, input, options)
-            }
-        }
-    }
-
-    override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
+    // ----------------------------------------------------------------
+    // Lifecycle
+    // ----------------------------------------------------------------
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
+
+        // Bildirim iznini hemen iste (bu normal, startup'ta sorun değil)
         requestNotificationPermission()
+
+        // Fallback: Dart "setAppReady" çağırmazsa 5 saniye sonra engeli kaldır
+        startupHandler.postDelayed({
+            startupBlocked = false
+        }, 5000)
     }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        startupHandler.removeCallbacksAndMessages(null)
+    }
+
+    // ----------------------------------------------------------------
+    // Permission intercept — Activity seviyesi (tüm plugin'lar buraya gelir)
+    // ----------------------------------------------------------------
+
+    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
+        if (startupBlocked && permissions.any { it in STARTUP_BLOCKED_PERMS }) {
+            // Startup fazında kamera/mikrofon dialog'unu gösterme
+            // Sisteme "reddedildi" olarak bildir, uygulama çökmez
+            onRequestPermissionsResult(
+                requestCode,
+                permissions,
+                IntArray(permissions.size) { i ->
+                    if (permissions[i] in STARTUP_BLOCKED_PERMS)
+                        PackageManager.PERMISSION_DENIED
+                    else
+                        PackageManager.PERMISSION_GRANTED
+                }
+            )
+            return
+        }
+        super.requestPermissions(permissions, requestCode)
+    }
+
+    // PluginRegistry callback'li versiyon (bazı eski flutter plugin'ları kullanır)
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
         resultCallback: PluginRegistry.RequestPermissionsResultListener
     ) {
-        val filtered = permissions.filter { it !in BLOCKED }.toTypedArray()
-        if (filtered.isEmpty()) {
+        if (startupBlocked && permissions.any { it in STARTUP_BLOCKED_PERMS }) {
             resultCallback.onRequestPermissionsResult(
                 requestCode,
                 permissions,
-                IntArray(permissions.size) { PackageManager.PERMISSION_DENIED }
+                IntArray(permissions.size) { i ->
+                    if (permissions[i] in STARTUP_BLOCKED_PERMS)
+                        PackageManager.PERMISSION_DENIED
+                    else
+                        PackageManager.PERMISSION_GRANTED
+                }
             )
             return
         }
-        super.requestPermissions(filtered, requestCode, resultCallback)
+        super.requestPermissions(permissions, requestCode, resultCallback)
     }
 
-    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        val filtered = permissions.filter { it !in BLOCKED }.toTypedArray()
-        if (filtered.isEmpty()) {
-            onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                IntArray(permissions.size) { PackageManager.PERMISSION_DENIED }
-            )
-            return
-        }
-        super.requestPermissions(filtered, requestCode)
-    }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        val sanitized = grantResults.copyOf()
-        for (i in permissions.indices) {
-            if (permissions[i] in BLOCKED) {
-                sanitized[i] = PackageManager.PERMISSION_DENIED
-            }
-        }
-        super.onRequestPermissionsResult(requestCode, permissions, sanitized)
-    }
+    // ----------------------------------------------------------------
+    // Flutter Method Channel
+    // ----------------------------------------------------------------
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
+
+                    // WebView yükleme tamamlandığında Dart bu metodu çağırır
+                    // → Artık kullanıcı kamera/fotoğraf kullanabilir, dialog çıkabilir
+                    "setAppReady" -> {
+                        startupBlocked = false
+                        startupHandler.removeCallbacksAndMessages(null)
+                        result.success(true)
+                    }
+
                     "requestNotificationPermission" -> {
                         requestNotificationPermission()
                         result.success(true)
                     }
+
                     "checkNotificationPermission" -> {
                         result.success(hasNotificationPermission())
                     }
+
                     else -> result.notImplemented()
                 }
             }
     }
+
+    // ----------------------------------------------------------------
+    // Notification helpers
+    // ----------------------------------------------------------------
 
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
