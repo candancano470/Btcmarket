@@ -1,9 +1,11 @@
 package com.btcmorning.btcmarketpro
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.webkit.PermissionRequest
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultRegistry
@@ -25,18 +27,24 @@ class MainActivity : FlutterActivity() {
         Manifest.permission.RECORD_AUDIO
     )
 
-    // CAMERA her zaman DENIED döner — plugin izin istemez
+    // ContextWrapper ile tüm checkSelfPermission çağrılarını yakala
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(BlockingContext(newBase))
+    }
+
+    // Activity seviyesinde checkSelfPermission override
     override fun checkSelfPermission(permission: String): Int {
         if (permission in BLOCKED) return PackageManager.PERMISSION_DENIED
         return super.checkSelfPermission(permission)
     }
 
+    // Context seviyesinde checkPermission override
     override fun checkPermission(permission: String, pid: Int, uid: Int): Int {
         if (permission in BLOCKED) return PackageManager.PERMISSION_DENIED
         return super.checkPermission(permission, pid, uid)
     }
 
-    // ActivityResultLauncher tabanlı istekleri yakala (flutter_inappwebview 6.x)
+    // ActivityResultLauncher tabanlı izin isteklerini yakala (flutter_inappwebview 6.x)
     private val blockedRegistry: ActivityResultRegistry by lazy {
         object : ActivityResultRegistry() {
             override fun <I, O> onLaunch(
