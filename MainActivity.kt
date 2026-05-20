@@ -25,7 +25,18 @@ class MainActivity : FlutterActivity() {
         Manifest.permission.RECORD_AUDIO
     )
 
-    // ActivityResultLauncher tabanlı izin isteklerini yakala
+    // CAMERA her zaman DENIED döner — plugin izin istemez
+    override fun checkSelfPermission(permission: String): Int {
+        if (permission in BLOCKED) return PackageManager.PERMISSION_DENIED
+        return super.checkSelfPermission(permission)
+    }
+
+    override fun checkPermission(permission: String, pid: Int, uid: Int): Int {
+        if (permission in BLOCKED) return PackageManager.PERMISSION_DENIED
+        return super.checkPermission(permission, pid, uid)
+    }
+
+    // ActivityResultLauncher tabanlı istekleri yakala (flutter_inappwebview 6.x)
     private val blockedRegistry: ActivityResultRegistry by lazy {
         object : ActivityResultRegistry() {
             override fun <I, O> onLaunch(
@@ -34,29 +45,24 @@ class MainActivity : FlutterActivity() {
                 input: I,
                 options: androidx.core.app.ActivityOptionsCompat?
             ) {
-                when {
-                    contract is ActivityResultContracts.RequestMultiplePermissions -> {
+                if (contract is ActivityResultContracts.RequestMultiplePermissions) {
+                    @Suppress("UNCHECKED_CAST")
+                    val perms = input as? Array<String> ?: emptyArray()
+                    if (perms.any { it in BLOCKED }) {
+                        val result = perms.associateWith { it !in BLOCKED }
                         @Suppress("UNCHECKED_CAST")
-                        val perms = input as? Array<String> ?: emptyArray()
-                        if (perms.any { it in BLOCKED }) {
-                            val result = perms.associateWith { it !in BLOCKED }
-                            @Suppress("UNCHECKED_CAST")
-                            dispatchResult(requestCode, result as O)
-                            return
-                        }
-                        super.onLaunch(requestCode, contract, input, options)
+                        dispatchResult(requestCode, result as O)
+                        return
                     }
-                    contract is ActivityResultContracts.RequestPermission -> {
-                        val perm = input as? String
-                        if (perm != null && perm in BLOCKED) {
-                            @Suppress("UNCHECKED_CAST")
-                            dispatchResult(requestCode, false as O)
-                            return
-                        }
-                        super.onLaunch(requestCode, contract, input, options)
+                } else if (contract is ActivityResultContracts.RequestPermission) {
+                    val perm = input as? String
+                    if (perm != null && perm in BLOCKED) {
+                        @Suppress("UNCHECKED_CAST")
+                        dispatchResult(requestCode, false as O)
+                        return
                     }
-                    else -> super.onLaunch(requestCode, contract, input, options)
                 }
+                super.onLaunch(requestCode, contract, input, options)
             }
         }
     }
@@ -70,7 +76,6 @@ class MainActivity : FlutterActivity() {
         requestNotificationPermission()
     }
 
-    // ActivityCompat.requestPermissions tabanlı istekleri yakala (eski yöntem)
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
@@ -106,7 +111,6 @@ class MainActivity : FlutterActivity() {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        // CAMERA/RECORD_AUDIO sonuçlarını zorla DENIED
         val sanitized = grantResults.copyOf()
         for (i in permissions.indices) {
             if (permissions[i] in BLOCKED) {
