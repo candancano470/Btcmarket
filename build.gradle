@@ -75,7 +75,6 @@ android {
         abortOnError false
     }
 
-    // flutter_inappwebview'in kamera iznini merged manifest'ten zorla sil
     configurations.all {
         resolutionStrategy {
             force "androidx.core:core:1.13.1"
@@ -87,32 +86,25 @@ flutter {
     source "../.."
 }
 
-// Merged manifest'ten CAMERA iznini build sırasında sil
 tasks.whenTaskAdded { task ->
-    if (task.name.contains("process") && task.name.contains("Manifest")) {
+    if (task.name.startsWith("process") && task.name.endsWith("Manifest")) {
         task.doLast {
-            def manifestFile = task.outputs.files.find {
-                it.name == "AndroidManifest.xml"
+            def outputDir = task.outputs.files.first()
+            def manifestFile = new File(outputDir, "AndroidManifest.xml")
+            if (!manifestFile.exists()) {
+                outputDir.eachFileRecurse { f ->
+                    if (f.name == "AndroidManifest.xml") manifestFile = f
+                }
             }
-            if (manifestFile && manifestFile.exists()) {
+            if (manifestFile.exists()) {
                 def content = manifestFile.text
-                content = content.replace(
-                    '<uses-permission android:name="android.permission.CAMERA"/>',
-                    ''
-                )
-                content = content.replace(
-                    '<uses-permission android:name="android.permission.CAMERA" />',
-                    ''
-                )
-                content = content.replace(
-                    '<uses-permission android:name="android.permission.RECORD_AUDIO"/>',
-                    ''
-                )
-                content = content.replace(
-                    '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
-                    ''
-                )
+                content = content.replace('<uses-permission android:name="android.permission.CAMERA"/>', '')
+                content = content.replace('<uses-permission android:name="android.permission.CAMERA" />', '')
+                content = content.replace('<uses-permission android:name="android.permission.RECORD_AUDIO"/>', '')
+                content = content.replace('<uses-permission android:name="android.permission.RECORD_AUDIO" />', '')
+                content = content.replaceAll(/(?m).*android\.hardware\.camera.*\n/, '')
                 manifestFile.text = content
+                println "✅ CAMERA/RECORD_AUDIO izinleri manifest'ten silindi"
             }
         }
     }
