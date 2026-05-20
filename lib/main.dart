@@ -62,7 +62,6 @@ bool _isExternalUrl(String url) {
 
 const String _filePickerScript = '''
 (function() {
-  // getUserMedia her koşulda tamamen engellendi — dialog çıkmaz
   try {
     if (navigator.mediaDevices) {
       navigator.mediaDevices.getUserMedia = function() {
@@ -78,7 +77,6 @@ const String _filePickerScript = '''
     window.getUserMedia = navigator.getUserMedia;
   } catch(e) {}
 
-  // File input → Flutter image_picker
   var _origClick = HTMLInputElement.prototype.click;
   HTMLInputElement.prototype.click = function() {
     var el = this;
@@ -282,7 +280,6 @@ class _AppRootState extends State<AppRoot> {
         try {
           final picker = ImagePicker();
           XFile? file;
-
           if (source == 'camera') {
             file = await picker.pickImage(
               source: ImageSource.camera,
@@ -296,9 +293,7 @@ class _AppRootState extends State<AppRoot> {
               imageQuality: 85,
             );
           }
-
           if (file == null) return null;
-
           final bytes = await file.readAsBytes();
           final b64 = base64Encode(bytes);
           return 'data:image/jpeg;base64,$b64';
@@ -396,8 +391,6 @@ class _AppRootState extends State<AppRoot> {
   }
 }
 
-// ── SplashScreen ──────────────────────────────────────────────────────────────
-
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
 
@@ -466,8 +459,6 @@ class SplashScreen extends StatelessWidget {
   }
 }
 
-// ── No Internet ───────────────────────────────────────────────────────────────
-
 class _NoInternetWidget extends StatelessWidget {
   final VoidCallback onRetry;
   const _NoInternetWidget({required this.onRetry});
@@ -515,8 +506,6 @@ class _NoInternetWidget extends StatelessWidget {
     );
   }
 }
-
-// ── Error ─────────────────────────────────────────────────────────────────────
 
 class _ErrorWidget extends StatelessWidget {
   final VoidCallback onRetry;
