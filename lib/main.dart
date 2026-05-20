@@ -81,9 +81,7 @@ const String _filePickerScript = '''
   HTMLInputElement.prototype.click = function() {
     var el = this;
     if (el.type === 'file' && (el.accept || '').indexOf('image') !== -1) {
-      var capture = el.capture || el.getAttribute('capture') || '';
-      var source = capture ? 'camera' : 'gallery';
-      window.flutter_inappwebview.callHandler('btcPickImage', source).then(function(dataUrl) {
+      window.flutter_inappwebview.callHandler('btcPickImage', 'gallery').then(function(dataUrl) {
         if (!dataUrl) return;
         fetch(dataUrl).then(function(r) { return r.blob(); }).then(function(blob) {
           var file = new File([blob], 'photo.jpg', { type: 'image/jpeg' });
@@ -276,23 +274,14 @@ class _AppRootState extends State<AppRoot> {
     controller.addJavaScriptHandler(
       handlerName: 'btcPickImage',
       callback: (args) async {
-        final source = args.isNotEmpty ? args[0] as String : 'gallery';
         try {
           final picker = ImagePicker();
-          XFile? file;
-          if (source == 'camera') {
-            file = await picker.pickImage(
-              source: ImageSource.camera,
-              imageQuality: 85,
-              maxWidth: 1920,
-              maxHeight: 1920,
-            );
-          } else {
-            file = await picker.pickImage(
-              source: ImageSource.gallery,
-              imageQuality: 85,
-            );
-          }
+          final file = await picker.pickImage(
+            source: ImageSource.gallery,
+            imageQuality: 85,
+            maxWidth: 1920,
+            maxHeight: 1920,
+          );
           if (file == null) return null;
           final bytes = await file.readAsBytes();
           final b64 = base64Encode(bytes);
