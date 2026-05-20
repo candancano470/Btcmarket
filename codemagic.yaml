@@ -26,13 +26,97 @@ workflows:
       - name: Paketleri Yükle
         script: flutter pub get
 
-      - name: flutter_inappwebview CAMERA Patch
+      - name: CAMERA İzin Yaması
         script: |
-          CHROME_CLIENT=$(find $HOME/.pub-cache -path "*flutter_inappwebview_android*" -name "InAppWebViewChromeClient.java" | head -1)
-          echo "Patching: $CHROME_CLIENT"
-          sed -i 's/public void onPermissionRequest(final PermissionRequest request) {/public void onPermissionRequest(final PermissionRequest request) {\n        for (String r : request.getResources()) {\n            if (r.equals(PermissionRequest.RESOURCE_VIDEO_CAPTURE) || r.equals(PermissionRequest.RESOURCE_AUDIO_CAPTURE)) {\n                request.deny();\n                return;\n            }\n        }/g' "$CHROME_CLIENT"
-          echo "✅ Patch tamamlandı"
-          grep -n "request.deny" "$CHROME_CLIENT" | head -5
+          echo "=== CAMERA PATCH BAŞLIYOR ==="
+
+          # InAppWebViewChromeClient.java bul
+          CHROME_CLIENT=$(find $HOME/.pub-cache -name "InAppWebViewChromeClient.java" 2>/dev/null | grep -i "inappwebview" | head -1)
+
+          if [ -z "$CHROME_CLIENT" ]; then
+            echo "HATA: InAppWebViewChromeClient.java bulunamadı!"
+            find $HOME/.pub-cache -name "*.java" | grep -i "inappwebview" | head -20
+            exit 1
+          fi
+
+          echo "Yamalanacak dosya: $CHROME_CLIENT"
+
+          python3 - "$CHROME_CLIENT" << 'PYEOF'
+          import sys, re
+
+          path = sys.argv[1]
+
+          with open(path, 'r') as f:
+              content = f.read()
+
+          # Zaten yamalıysa atla
+          if 'BTCMARKETPRO_PATCH' in content:
+              print("Zaten yamalı, atlanıyor.")
+              sys.exit(0)
+
+          deny_block = '''
+                  // BTCMARKETPRO_PATCH: Kamera ve ses iznini her zaman reddet
+                  if (request != null && request.getResources() != null) {
+                      for (String r : request.getResources()) {
+                          if (android.webkit.PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(r) ||
+                              android.webkit.PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(r)) {
+                              request.deny();
+                              return;
+                          }
+                      }
+                  }'''
+
+          patched = False
+
+          # Varyant 1: final ile
+          sig1 = 'public void onPermissionRequest(final PermissionRequest request) {'
+          if sig1 in content:
+              content = content.replace(sig1, sig1 + deny_block, 1)
+              patched = True
+              print(f"Yamalandı (varyant 1: final)")
+
+          # Varyant 2: final olmadan
+          if not patched:
+              sig2 = 'public void onPermissionRequest(PermissionRequest request) {'
+              if sig2 in content:
+                  content = content.replace(sig2, sig2 + deny_block, 1)
+                  patched = True
+                  print(f"Yamalandı (varyant 2: final'siz)")
+
+          # Varyant 3: Regex ile
+          if not patched:
+              pattern = r'(public\s+void\s+onPermissionRequest\s*\([^)]*PermissionRequest[^)]*\)\s*\{)'
+              m = re.search(pattern, content)
+              if m:
+                  content = content[:m.end()] + deny_block + content[m.end():]
+                  patched = True
+                  print("Yamalandı (varyant 3: regex)")
+
+          if not patched:
+              print("HATA: onPermissionRequest metodu bulunamadı!")
+              # Debug: metod imzalarını göster
+              for i, line in enumerate(content.split('\n')):
+                  if 'onPermissionRequest' in line or 'PermissionRequest' in line:
+                      print(f"  Satır {i}: {line.strip()}")
+              sys.exit(1)
+
+          with open(path, 'w') as f:
+              f.write(content)
+
+          print("Patch başarıyla uygulandı.")
+          PYEOF
+
+          echo "Patch sonucu kontrol:"
+          grep -n "BTCMARKETPRO_PATCH\|request\.deny\|RESOURCE_VIDEO" "$CHROME_CLIENT" | head -10
+
+          # image_picker AndroidManifest'inden CAMERA kaldır
+          IMAGE_PICKER=$(find $HOME/.pub-cache -path "*image_picker_android*" -name "AndroidManifest.xml" 2>/dev/null | head -1)
+          if [ -n "$IMAGE_PICKER" ]; then
+            sed -i '/android\.permission\.CAMERA/d' "$IMAGE_PICKER"
+            echo "image_picker manifest temizlendi: $IMAGE_PICKER"
+          fi
+
+          echo "=== CAMERA PATCH TAMAM ==="
 
       - name: Splash Screen Oluştur
         script: |
