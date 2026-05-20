@@ -20,39 +20,23 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
 
-    /**
-     * Startup fazı flag'i.
-     * true  → uygulama henüz yükleniyor, kamera/mikrofon dialog'u engellenir
-     * false → kullanıcı uygulama içinde gerçekten izin isteyebilir
-     *
-     * İki şekilde false yapılır:
-     *   1. Dart tarafı "setAppReady" channel çağrısı (WebView onLoadStop)
-     *   2. Fallback: 5 saniye sonra otomatik
-     */
     @Volatile
     private var startupBlocked = true
 
     private val startupHandler = Handler(Looper.getMainLooper())
 
-    // Startup'ta engellenmesi gereken izinler
     private val STARTUP_BLOCKED_PERMS = setOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO
     )
 
-    // ----------------------------------------------------------------
-    // Lifecycle
-    // ----------------------------------------------------------------
-
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
-
-        // Bildirim iznini hemen iste (bu normal, startup'ta sorun değil)
         requestNotificationPermission()
 
-        // Fallback: Dart "setAppReady" çağırmazsa 5 saniye sonra engeli kaldır
+        // Dart setAppReady çağırmazsa 5 saniye sonra otomatik aç
         startupHandler.postDelayed({
             startupBlocked = false
         }, 5000)
@@ -63,14 +47,8 @@ class MainActivity : FlutterActivity() {
         startupHandler.removeCallbacksAndMessages(null)
     }
 
-    // ----------------------------------------------------------------
-    // Permission intercept — Activity seviyesi (tüm plugin'lar buraya gelir)
-    // ----------------------------------------------------------------
-
     override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
         if (startupBlocked && permissions.any { it in STARTUP_BLOCKED_PERMS }) {
-            // Startup fazında kamera/mikrofon dialog'unu gösterme
-            // Sisteme "reddedildi" olarak bildir, uygulama çökmez
             onRequestPermissionsResult(
                 requestCode,
                 permissions,
@@ -86,7 +64,6 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode)
     }
 
-    // PluginRegistry callback'li versiyon (bazı eski flutter plugin'ları kullanır)
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
@@ -108,41 +85,27 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode, resultCallback)
     }
 
-    // ----------------------------------------------------------------
-    // Flutter Method Channel
-    // ----------------------------------------------------------------
-
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-
-                    // WebView yükleme tamamlandığında Dart bu metodu çağırır
-                    // → Artık kullanıcı kamera/fotoğraf kullanabilir, dialog çıkabilir
                     "setAppReady" -> {
                         startupBlocked = false
                         startupHandler.removeCallbacksAndMessages(null)
                         result.success(true)
                     }
-
                     "requestNotificationPermission" -> {
                         requestNotificationPermission()
                         result.success(true)
                     }
-
                     "checkNotificationPermission" -> {
                         result.success(hasNotificationPermission())
                     }
-
                     else -> result.notImplemented()
                 }
             }
     }
-
-    // ----------------------------------------------------------------
-    // Notification helpers
-    // ----------------------------------------------------------------
 
     private fun requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
