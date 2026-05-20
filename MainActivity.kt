@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -23,6 +25,44 @@ class MainActivity : FlutterActivity() {
         Manifest.permission.RECORD_AUDIO
     )
 
+    // ActivityResultLauncher tabanlı izin isteklerini yakala
+    private val blockedRegistry: ActivityResultRegistry by lazy {
+        object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(
+                requestCode: Int,
+                contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
+                input: I,
+                options: androidx.core.app.ActivityOptionsCompat?
+            ) {
+                when {
+                    contract is ActivityResultContracts.RequestMultiplePermissions -> {
+                        @Suppress("UNCHECKED_CAST")
+                        val perms = input as? Array<String> ?: emptyArray()
+                        if (perms.any { it in BLOCKED }) {
+                            val result = perms.associateWith { it !in BLOCKED }
+                            @Suppress("UNCHECKED_CAST")
+                            dispatchResult(requestCode, result as O)
+                            return
+                        }
+                        super.onLaunch(requestCode, contract, input, options)
+                    }
+                    contract is ActivityResultContracts.RequestPermission -> {
+                        val perm = input as? String
+                        if (perm != null && perm in BLOCKED) {
+                            @Suppress("UNCHECKED_CAST")
+                            dispatchResult(requestCode, false as O)
+                            return
+                        }
+                        super.onLaunch(requestCode, contract, input, options)
+                    }
+                    else -> super.onLaunch(requestCode, contract, input, options)
+                }
+            }
+        }
+    }
+
+    override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -30,6 +70,7 @@ class MainActivity : FlutterActivity() {
         requestNotificationPermission()
     }
 
+    // ActivityCompat.requestPermissions tabanlı istekleri yakala (eski yöntem)
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
@@ -65,7 +106,14 @@ class MainActivity : FlutterActivity() {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        // CAMERA/RECORD_AUDIO sonuçlarını zorla DENIED
+        val sanitized = grantResults.copyOf()
+        for (i in permissions.indices) {
+            if (permissions[i] in BLOCKED) {
+                sanitized[i] = PackageManager.PERMISSION_DENIED
+            }
+        }
+        super.onRequestPermissionsResult(requestCode, permissions, sanitized)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
