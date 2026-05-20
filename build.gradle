@@ -86,25 +86,57 @@ flutter {
     source "../.."
 }
 
+// Merged manifest'ten CAMERA ve RECORD_AUDIO izinlerini sil
 tasks.whenTaskAdded { task ->
     if (task.name.startsWith("process") && task.name.endsWith("Manifest")) {
         task.doLast {
-            def outputDir = task.outputs.files.first()
-            def manifestFile = new File(outputDir, "AndroidManifest.xml")
-            if (!manifestFile.exists()) {
-                outputDir.eachFileRecurse { f ->
-                    if (f.name == "AndroidManifest.xml") manifestFile = f
+            def manifestFiles = []
+
+            task.outputs.files.each { output ->
+                if (output.isDirectory()) {
+                    output.eachFileRecurse { f ->
+                        if (f.name == "AndroidManifest.xml") manifestFiles << f
+                    }
+                } else if (output.name == "AndroidManifest.xml") {
+                    manifestFiles << output
                 }
             }
-            if (manifestFile.exists()) {
+
+            manifestFiles.each { manifestFile ->
+                if (!manifestFile.exists()) return
                 def content = manifestFile.text
-                content = content.replace('<uses-permission android:name="android.permission.CAMERA"/>', '')
-                content = content.replace('<uses-permission android:name="android.permission.CAMERA" />', '')
-                content = content.replace('<uses-permission android:name="android.permission.RECORD_AUDIO"/>', '')
-                content = content.replace('<uses-permission android:name="android.permission.RECORD_AUDIO" />', '')
-                content = content.replaceAll(/(?m).*android\.hardware\.camera.*\n/, '')
-                manifestFile.text = content
-                println "✅ CAMERA/RECORD_AUDIO izinleri manifest'ten silindi"
+                def original = content
+
+                // CAMERA permission — tüm varyantlar
+                content = content.replaceAll(
+                    /\s*<uses-permission[^>]*android\.permission\.CAMERA[^>]*\/>/,
+                    ''
+                )
+                content = content.replaceAll(
+                    /\s*<uses-permission[^>]*android\.permission\.CAMERA[^>]*>\s*<\/uses-permission>/,
+                    ''
+                )
+                // RECORD_AUDIO permission — tüm varyantlar
+                content = content.replaceAll(
+                    /\s*<uses-permission[^>]*android\.permission\.RECORD_AUDIO[^>]*\/>/,
+                    ''
+                )
+                content = content.replaceAll(
+                    /\s*<uses-permission[^>]*android\.permission\.RECORD_AUDIO[^>]*>\s*<\/uses-permission>/,
+                    ''
+                )
+                // Camera hardware feature
+                content = content.replaceAll(
+                    /\s*<uses-feature[^>]*android\.hardware\.camera[^>]*\/>/,
+                    ''
+                )
+
+                if (content != original) {
+                    manifestFile.text = content
+                    println "✅ CAMERA/RECORD_AUDIO manifest'ten silindi: ${manifestFile.path}"
+                } else {
+                    println "ℹ️  Manifest'te CAMERA zaten yok: ${manifestFile.path}"
+                }
             }
         }
     }
