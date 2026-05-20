@@ -4,8 +4,6 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultRegistry
@@ -23,76 +21,62 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
 
-    @Volatile
-    private var startupBlocked = true
-
-    private val startupHandler = Handler(Looper.getMainLooper())
-
-    private val STARTUP_BLOCKED_PERMS = setOf(
+    // Bu izinler HİÇBİR ZAMAN verilmez — ne startup'ta ne sonrasında
+    private val ALWAYS_DENIED = setOf(
         Manifest.permission.CAMERA,
-        Manifest.permission.RECORD_AUDIO
+        Manifest.permission.RECORD_AUDIO,
+        Manifest.permission.MODIFY_AUDIO_SETTINGS
     )
 
-    private val lazyRegistry: ActivityResultRegistry by lazy {
-        object : ActivityResultRegistry() {
-            override fun <I, O> onLaunch(
-                requestCode: Int,
-                contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
-                input: I,
-                options: ActivityOptionsCompat?
-            ) {
-                if (startupBlocked) {
-                    when (contract) {
-                        is ActivityResultContracts.RequestMultiplePermissions -> {
-                            @Suppress("UNCHECKED_CAST")
-                            val perms = input as? Array<String> ?: emptyArray()
-                            if (perms.any { it in STARTUP_BLOCKED_PERMS }) {
-                                val result = perms.associateWith { it !in STARTUP_BLOCKED_PERMS }
-                                @Suppress("UNCHECKED_CAST")
-                                dispatchResult(requestCode, result as O)
-                                return
-                            }
-                        }
-                        is ActivityResultContracts.RequestPermission -> {
-                            val perm = input as? String
-                            if (perm != null && perm in STARTUP_BLOCKED_PERMS) {
-                                @Suppress("UNCHECKED_CAST")
-                                dispatchResult(requestCode, false as O)
-                                return
-                            }
-                        }
+    // ── Yeni Activity Result API yolunu bloke eder (flutter_inappwebview bunu kullanır) ──
+    private val blockedRegistry = object : ActivityResultRegistry() {
+        override fun <I, O> onLaunch(
+            requestCode: Int,
+            contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
+            input: I,
+            options: ActivityOptionsCompat?
+        ) {
+            when (contract) {
+                is ActivityResultContracts.RequestPermission -> {
+                    val perm = input as? String
+                    if (perm != null && perm in ALWAYS_DENIED) {
+                        @Suppress("UNCHECKED_CAST")
+                        dispatchResult(requestCode, false as O)
+                        return
                     }
                 }
-                super.onLaunch(requestCode, contract, input, options)
+                is ActivityResultContracts.RequestMultiplePermissions -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val perms = input as? Array<String> ?: emptyArray()
+                    if (perms.any { it in ALWAYS_DENIED }) {
+                        val result = perms.associateWith { it !in ALWAYS_DENIED }
+                        @Suppress("UNCHECKED_CAST")
+                        dispatchResult(requestCode, result as O)
+                        return
+                    }
+                }
             }
+            super.onLaunch(requestCode, contract, input, options)
         }
     }
 
-    override fun getActivityResultRegistry(): ActivityResultRegistry = lazyRegistry
+    override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
         requestNotificationPermission()
-
-        startupHandler.postDelayed({
-            startupBlocked = false
-        }, 5000)
     }
 
-    override fun onDestroy() {
-        super.onDestroy()
-        startupHandler.removeCallbacksAndMessages(null)
-    }
-
+    // ── Eski requestPermissions API yolunu bloke eder ──
     override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        if (startupBlocked && permissions.any { it in STARTUP_BLOCKED_PERMS }) {
+        if (permissions.any { it in ALWAYS_DENIED }) {
             onRequestPermissionsResult(
                 requestCode,
                 permissions,
                 IntArray(permissions.size) { i ->
-                    if (permissions[i] in STARTUP_BLOCKED_PERMS)
+                    if (permissions[i] in ALWAYS_DENIED)
                         PackageManager.PERMISSION_DENIED
                     else
                         PackageManager.PERMISSION_GRANTED
@@ -103,17 +87,18 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode)
     }
 
+    // ── Flutter plugin registry API yolunu bloke eder ──
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
         resultCallback: PluginRegistry.RequestPermissionsResultListener
     ) {
-        if (startupBlocked && permissions.any { it in STARTUP_BLOCKED_PERMS }) {
+        if (permissions.any { it in ALWAYS_DENIED }) {
             resultCallback.onRequestPermissionsResult(
                 requestCode,
                 permissions,
                 IntArray(permissions.size) { i ->
-                    if (permissions[i] in STARTUP_BLOCKED_PERMS)
+                    if (permissions[i] in ALWAYS_DENIED)
                         PackageManager.PERMISSION_DENIED
                     else
                         PackageManager.PERMISSION_GRANTED
@@ -129,19 +114,13 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "setAppReady" -> {
-                        startupBlocked = false
-                        startupHandler.removeCallbacksAndMessages(null)
-                        result.success(true)
-                    }
+                    "setAppReady"                  -> result.success(true)
                     "requestNotificationPermission" -> {
                         requestNotificationPermission()
                         result.success(true)
                     }
-                    "checkNotificationPermission" -> {
-                        result.success(hasNotificationPermission())
-                    }
-                    else -> result.notImplemented()
+                    "checkNotificationPermission"  -> result.success(hasNotificationPermission())
+                    else                           -> result.notImplemented()
                 }
             }
     }
