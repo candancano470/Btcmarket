@@ -356,6 +356,13 @@ class _AppRootState extends State<AppRoot> {
                   },
                   onLoadStop: (controller, url) async {
                     if (!mounted) return;
+
+                    // Sayfa yüklendi → startup engeli kaldır
+                    // Artık kullanıcı kamera/galeri iznini uygulama içinde alabilir
+                    try {
+                      await _permChannel.invokeMethod('setAppReady');
+                    } catch (_) {}
+
                     setState(() {
                       _showSplash = false;
                       _hasError = false;
