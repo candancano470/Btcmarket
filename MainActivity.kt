@@ -8,7 +8,10 @@ import android.os.Handler
 import android.os.Looper
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
+import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -30,13 +33,49 @@ class MainActivity : FlutterActivity() {
         Manifest.permission.RECORD_AUDIO
     )
 
+    private val lazyRegistry: ActivityResultRegistry by lazy {
+        object : ActivityResultRegistry() {
+            override fun <I, O> onLaunch(
+                requestCode: Int,
+                contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
+                input: I,
+                options: ActivityOptionsCompat?
+            ) {
+                if (startupBlocked) {
+                    when (contract) {
+                        is ActivityResultContracts.RequestMultiplePermissions -> {
+                            @Suppress("UNCHECKED_CAST")
+                            val perms = input as? Array<String> ?: emptyArray()
+                            if (perms.any { it in STARTUP_BLOCKED_PERMS }) {
+                                val result = perms.associateWith { it !in STARTUP_BLOCKED_PERMS }
+                                @Suppress("UNCHECKED_CAST")
+                                dispatchResult(requestCode, result as O)
+                                return
+                            }
+                        }
+                        is ActivityResultContracts.RequestPermission -> {
+                            val perm = input as? String
+                            if (perm != null && perm in STARTUP_BLOCKED_PERMS) {
+                                @Suppress("UNCHECKED_CAST")
+                                dispatchResult(requestCode, false as O)
+                                return
+                            }
+                        }
+                    }
+                }
+                super.onLaunch(requestCode, contract, input, options)
+            }
+        }
+    }
+
+    override fun getActivityResultRegistry(): ActivityResultRegistry = lazyRegistry
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
         requestNotificationPermission()
 
-        // Dart setAppReady çağırmazsa 5 saniye sonra otomatik aç
         startupHandler.postDelayed({
             startupBlocked = false
         }, 5000)
