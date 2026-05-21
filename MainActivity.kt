@@ -21,14 +21,16 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
 
-    // Bu izinler HİÇBİR ZAMAN verilmez — ne startup'ta ne sonrasında
-    private val ALWAYS_DENIED = setOf(
+    // Başlangıçta kamera bloke, kullanıcı isteyince açılır
+    @Volatile
+    private var cameraBlocked = true
+
+    private val CAMERA_PERMS = setOf(
         Manifest.permission.CAMERA,
         Manifest.permission.RECORD_AUDIO,
         Manifest.permission.MODIFY_AUDIO_SETTINGS
     )
 
-    // ── Yeni Activity Result API yolunu bloke eder (flutter_inappwebview bunu kullanır) ──
     private val blockedRegistry = object : ActivityResultRegistry() {
         override fun <I, O> onLaunch(
             requestCode: Int,
@@ -36,23 +38,25 @@ class MainActivity : FlutterActivity() {
             input: I,
             options: ActivityOptionsCompat?
         ) {
-            when (contract) {
-                is ActivityResultContracts.RequestPermission -> {
-                    val perm = input as? String
-                    if (perm != null && perm in ALWAYS_DENIED) {
-                        @Suppress("UNCHECKED_CAST")
-                        dispatchResult(requestCode, false as O)
-                        return
+            if (cameraBlocked) {
+                when (contract) {
+                    is ActivityResultContracts.RequestPermission -> {
+                        val perm = input as? String
+                        if (perm != null && perm in CAMERA_PERMS) {
+                            @Suppress("UNCHECKED_CAST")
+                            dispatchResult(requestCode, false as O)
+                            return
+                        }
                     }
-                }
-                is ActivityResultContracts.RequestMultiplePermissions -> {
-                    @Suppress("UNCHECKED_CAST")
-                    val perms = input as? Array<String> ?: emptyArray()
-                    if (perms.any { it in ALWAYS_DENIED }) {
-                        val result = perms.associateWith { it !in ALWAYS_DENIED }
+                    is ActivityResultContracts.RequestMultiplePermissions -> {
                         @Suppress("UNCHECKED_CAST")
-                        dispatchResult(requestCode, result as O)
-                        return
+                        val perms = input as? Array<String> ?: emptyArray()
+                        if (perms.any { it in CAMERA_PERMS }) {
+                            val result = perms.associateWith { it !in CAMERA_PERMS }
+                            @Suppress("UNCHECKED_CAST")
+                            dispatchResult(requestCode, result as O)
+                            return
+                        }
                     }
                 }
             }
@@ -69,14 +73,13 @@ class MainActivity : FlutterActivity() {
         requestNotificationPermission()
     }
 
-    // ── Eski requestPermissions API yolunu bloke eder ──
     override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        if (permissions.any { it in ALWAYS_DENIED }) {
+        if (cameraBlocked && permissions.any { it in CAMERA_PERMS }) {
             onRequestPermissionsResult(
                 requestCode,
                 permissions,
                 IntArray(permissions.size) { i ->
-                    if (permissions[i] in ALWAYS_DENIED)
+                    if (permissions[i] in CAMERA_PERMS)
                         PackageManager.PERMISSION_DENIED
                     else
                         PackageManager.PERMISSION_GRANTED
@@ -87,18 +90,17 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode)
     }
 
-    // ── Flutter plugin registry API yolunu bloke eder ──
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
         resultCallback: PluginRegistry.RequestPermissionsResultListener
     ) {
-        if (permissions.any { it in ALWAYS_DENIED }) {
+        if (cameraBlocked && permissions.any { it in CAMERA_PERMS }) {
             resultCallback.onRequestPermissionsResult(
                 requestCode,
                 permissions,
                 IntArray(permissions.size) { i ->
-                    if (permissions[i] in ALWAYS_DENIED)
+                    if (permissions[i] in CAMERA_PERMS)
                         PackageManager.PERMISSION_DENIED
                     else
                         PackageManager.PERMISSION_GRANTED
@@ -114,13 +116,25 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
-                    "setAppReady"                  -> result.success(true)
+                    "setAppReady" -> result.success(true)
+                    "allowCamera" -> {
+                        // Kullanıcı Camera seçti, izin isteğine izin ver
+                        cameraBlocked = false
+                        result.success(true)
+                    }
+                    "blockCamera" -> {
+                        // İzin alındı/reddedildi, tekrar bloke et
+                        cameraBlocked = true
+                        result.success(true)
+                    }
                     "requestNotificationPermission" -> {
                         requestNotificationPermission()
                         result.success(true)
                     }
-                    "checkNotificationPermission"  -> result.success(hasNotificationPermission())
-                    else                           -> result.notImplemented()
+                    "checkNotificationPermission" -> {
+                        result.success(hasNotificationPermission())
+                    }
+                    else -> result.notImplemented()
                 }
             }
     }
