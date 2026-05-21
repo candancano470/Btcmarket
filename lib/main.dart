@@ -14,8 +14,7 @@ import 'background_service.dart';
 final FlutterLocalNotificationsPlugin _notifPlugin =
     FlutterLocalNotificationsPlugin();
 
-const _permChannel =
-    MethodChannel('com.btcmorning.btcmarketpro/permissions');
+const _permChannel = MethodChannel('com.btcmorning.btcmarketpro/permissions');
 
 Future<void> _initNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
@@ -60,7 +59,7 @@ bool _isExternalUrl(String url) {
   return true;
 }
 
-const String _filePickerScript = '''
+const String _filePickerScript = r'''
 (function() {
   try {
     if (navigator.mediaDevices) {
@@ -124,7 +123,6 @@ void main() async {
 
 class BTCMarketProApp extends StatelessWidget {
   const BTCMarketProApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -145,7 +143,6 @@ class BTCMarketProApp extends StatelessWidget {
 
 class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
-
   @override
   State<AppRoot> createState() => _AppRootState();
 }
@@ -156,7 +153,6 @@ class _AppRootState extends State<AppRoot> {
   bool _hasError = false;
   bool _hasInternet = true;
   late StreamSubscription<List<ConnectivityResult>> _connectivitySub;
-
   bool _pollingStarted = false;
   Timer? _notifTimer;
   int _lastChecked = 0;
@@ -169,14 +165,12 @@ class _AppRootState extends State<AppRoot> {
   void initState() {
     super.initState();
     _lastChecked = DateTime.now().millisecondsSinceEpoch ~/ 1000 - 300;
-
     _connectivitySub = Connectivity().onConnectivityChanged.listen((results) {
       final hasNet =
           results.isNotEmpty && results.first != ConnectivityResult.none;
       if (!mounted) return;
       setState(() => _hasInternet = hasNet);
     });
-
     Future.delayed(const Duration(seconds: 10), () {
       if (mounted && _showSplash) setState(() => _showSplash = false);
     });
@@ -237,21 +231,31 @@ class _AppRootState extends State<AppRoot> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF0D1F3C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Exit App',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        content: const Text('Are you sure you want to exit BTCMarketPro?',
-            style: TextStyle(color: Colors.white70)),
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Exit App',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Are you sure you want to exit BTCMarketPro?',
+          style: TextStyle(color: Colors.white70),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('No', style: TextStyle(color: Color(0xFF1A6FFF))),
+            child: const Text(
+              'No',
+              style: TextStyle(color: Color(0xFF1A6FFF)),
+            ),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF1A6FFF),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             child: const Text('Yes', style: TextStyle(color: Colors.white)),
           ),
@@ -291,17 +295,25 @@ class _AppRootState extends State<AppRoot> {
                 ),
               ),
               ListTile(
-                leading: const Icon(Icons.camera_alt_rounded,
-                    color: Color(0xFF1A6FFF)),
-                title: const Text('Camera',
-                    style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.camera_alt_rounded,
+                  color: Color(0xFF1A6FFF),
+                ),
+                title: const Text(
+                  'Camera',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () => Navigator.pop(ctx, ImageSource.camera),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded,
-                    color: Color(0xFF1A6FFF)),
-                title: const Text('Gallery',
-                    style: TextStyle(color: Colors.white)),
+                leading: const Icon(
+                  Icons.photo_library_rounded,
+                  color: Color(0xFF1A6FFF),
+                ),
+                title: const Text(
+                  'Gallery',
+                  style: TextStyle(color: Colors.white),
+                ),
                 onTap: () => Navigator.pop(ctx, ImageSource.gallery),
               ),
               const SizedBox(height: 8),
@@ -393,8 +405,10 @@ class _AppRootState extends State<AppRoot> {
                     if (url.isEmpty) return NavigationActionPolicy.ALLOW;
                     if (_isExternalUrl(url)) {
                       try {
-                        await launchUrl(Uri.parse(url),
-                            mode: LaunchMode.externalApplication);
+                        await launchUrl(
+                          Uri.parse(url),
+                          mode: LaunchMode.externalApplication,
+                        );
                       } catch (_) {}
                       return NavigationActionPolicy.CANCEL;
                     }
@@ -432,7 +446,6 @@ class _AppRootState extends State<AppRoot> {
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -501,7 +514,6 @@ class SplashScreen extends StatelessWidget {
 class _NoInternetWidget extends StatelessWidget {
   final VoidCallback onRetry;
   const _NoInternetWidget({required this.onRetry});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -512,17 +524,26 @@ class _NoInternetWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.wifi_off_rounded, size: 72, color: Colors.white24),
+              const Icon(
+                Icons.wifi_off_rounded,
+                size: 72,
+                color: Colors.white24,
+              ),
               const SizedBox(height: 20),
-              const Text('No Internet Connection',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
+              const Text(
+                'No Internet Connection',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text('Please check your connection and try again.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54, fontSize: 14)),
+              const Text(
+                'Please check your connection and try again.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white54, fontSize: 14),
+              ),
               const SizedBox(height: 28),
               ElevatedButton.icon(
                 onPressed: onRetry,
@@ -531,9 +552,13 @@ class _NoInternetWidget extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF1A6FFF),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 12,
+                  ),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
                 ),
               ),
             ],
@@ -547,7 +572,6 @@ class _NoInternetWidget extends StatelessWidget {
 class _ErrorWidget extends StatelessWidget {
   final VoidCallback onRetry;
   const _ErrorWidget({required this.onRetry});
-
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -558,26 +582,21 @@ class _ErrorWidget extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.error_outline_rounded,
-                  size: 72, color: Colors.redAccent),
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 72,
+                color: Colors.redAccent,
+              ),
               const SizedBox(height: 20),
-              const Text('Page Failed to Load',
-                  style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold)),
+              const Text(
+                'Page Failed to Load',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
               const SizedBox(height: 8),
-              const Text('Something went wrong. Please try again.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(color: Colors.white54, fontSize: 14)),
-              const SizedBox(height: 28),
-              ElevatedButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A6FFF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                  shape: RoundedRectangleBorder(
-                
+              const Text(
+                'Something went wrong. Please try again.',
+                textAlign:
