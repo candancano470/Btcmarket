@@ -1,162 +1,36 @@
-package com.btcmorning.btcmarketpro
+name: btcmarketpro
+description: BTCMarketPro - Advanced Crypto Social Platform
+publish_to: 'none'
+version: 1.3.0+2100
 
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
-import android.os.Bundle
-import android.webkit.WebView
-import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultRegistry
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.app.ActivityCompat
-import androidx.core.app.ActivityOptionsCompat
-import androidx.core.content.ContextCompat
-import io.flutter.embedding.android.FlutterActivity
-import io.flutter.embedding.engine.FlutterEngine
-import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.PluginRegistry
+environment:
+  sdk: '>=3.4.0 <4.0.0'
 
-class MainActivity : FlutterActivity() {
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: ^6.1.5
+  connectivity_plus: ^6.0.5
+  url_launcher: ^6.3.0
+  flutter_local_notifications: ^17.2.4
+  workmanager: ^0.6.0
+  image_picker: ^1.1.2
 
-    private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
-    private val NOTIF_REQUEST_CODE = 1001
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_native_splash: ^2.4.1
 
-    // Başlangıçta kamera bloke, kullanıcı isteyince açılır
-    @Volatile
-    private var cameraBlocked = true
+flutter_native_splash:
+  color: "#071330"
+  android: true
+  ios: false
+  android_12:
+    color: "#071330"
+    icon_background_color: "#071130"
 
-    private val CAMERA_PERMS = setOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.MODIFY_AUDIO_SETTINGS
-    )
-
-    private val blockedRegistry = object : ActivityResultRegistry() {
-        override fun <I, O> onLaunch(
-            requestCode: Int,
-            contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
-            input: I,
-            options: ActivityOptionsCompat?
-        ) {
-            if (cameraBlocked) {
-                when (contract) {
-                    is ActivityResultContracts.RequestPermission -> {
-                        val perm = input as? String
-                        if (perm != null && perm in CAMERA_PERMS) {
-                            @Suppress("UNCHECKED_CAST")
-                            dispatchResult(requestCode, false as O)
-                            return
-                        }
-                    }
-                    is ActivityResultContracts.RequestMultiplePermissions -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val perms = input as? Array<String> ?: emptyArray()
-                        if (perms.any { it in CAMERA_PERMS }) {
-                            val result = perms.associateWith { it !in CAMERA_PERMS }
-                            @Suppress("UNCHECKED_CAST")
-                            dispatchResult(requestCode, result as O)
-                            return
-                        }
-                    }
-                }
-            }
-            super.onLaunch(requestCode, contract, input, options)
-        }
-    }
-
-    override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
-
-    override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
-        super.onCreate(savedInstanceState)
-        WebView.setWebContentsDebuggingEnabled(false)
-        requestNotificationPermission()
-    }
-
-    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        if (cameraBlocked && permissions.any { it in CAMERA_PERMS }) {
-            onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                IntArray(permissions.size) { i ->
-                    if (permissions[i] in CAMERA_PERMS)
-                        PackageManager.PERMISSION_DENIED
-                    else
-                        PackageManager.PERMISSION_GRANTED
-                }
-            )
-            return
-        }
-        super.requestPermissions(permissions, requestCode)
-    }
-
-    override fun requestPermissions(
-        permissions: Array<String>,
-        requestCode: Int,
-        resultCallback: PluginRegistry.RequestPermissionsResultListener
-    ) {
-        if (cameraBlocked && permissions.any { it in CAMERA_PERMS }) {
-            resultCallback.onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                IntArray(permissions.size) { i ->
-                    if (permissions[i] in CAMERA_PERMS)
-                        PackageManager.PERMISSION_DENIED
-                    else
-                        PackageManager.PERMISSION_GRANTED
-                }
-            )
-            return
-        }
-        super.requestPermissions(permissions, requestCode, resultCallback)
-    }
-
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
-        super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-            .setMethodCallHandler { call, result ->
-                when (call.method) {
-                    "setAppReady" -> result.success(true)
-                    "allowCamera" -> {
-                        // Kullanıcı Camera seçti, izin isteğine izin ver
-                        cameraBlocked = false
-                        result.success(true)
-                    }
-                    "blockCamera" -> {
-                        // İzin alındı/reddedildi, tekrar bloke et
-                        cameraBlocked = true
-                        result.success(true)
-                    }
-                    "requestNotificationPermission" -> {
-                        requestNotificationPermission()
-                        result.success(true)
-                    }
-                    "checkNotificationPermission" -> {
-                        result.success(hasNotificationPermission())
-                    }
-                    else -> result.notImplemented()
-                }
-            }
-    }
-
-    private fun requestNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (!hasNotificationPermission()) {
-                ActivityCompat.requestPermissions(
-                    this,
-                    arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    NOTIF_REQUEST_CODE
-                )
-            }
-        }
-    }
-
-    private fun hasNotificationPermission(): Boolean {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            ContextCompat.checkSelfPermission(
-                this,
-                Manifest.permission.POST_NOTIFICATIONS
-            ) == PackageManager.PERMISSION_GRANTED
-        } else true
-    }
-}
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/logo.png
