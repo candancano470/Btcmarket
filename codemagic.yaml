@@ -1,4 +1,4 @@
-workflows:
+Workflows:
   android-release:
     name: BTCMarketPro Android Release
     max_build_duration: 60
@@ -20,9 +20,10 @@ workflows:
           echo "flutter.sdk=$FLUTTER_ROOT" > android/local.properties
       - name: Get Flutter packages
         script: |
+          flutter clean
           flutter pub get
       - name: Build Android APK
         script: |
-          flutter build apk --release --clean
+          flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/app-release.apk
