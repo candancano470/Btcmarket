@@ -1,4 +1,4 @@
-Workflows:
+workflows:
   android-release:
     name: BTCMarketPro Android Release
     max_build_duration: 60
@@ -14,6 +14,7 @@ Workflows:
       branch_patterns:
         - pattern: main
           include: true
+          source: true
     scripts:
       - name: Set up local.properties
         script: |
