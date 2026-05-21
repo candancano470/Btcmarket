@@ -20,9 +20,6 @@ Future<void> _initNotifications() async {
   const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
   const initSettings = InitializationSettings(android: androidInit);
   await _notifPlugin.initialize(initSettings);
-  try {
-    await _permChannel.invokeMethod('requestNotificationPermission');
-  } catch (_) {}
 }
 
 Future<void> _showNotification(String title, String body) async {
@@ -320,9 +317,6 @@ class _AppRootState extends State<AppRoot> {
     if (source == null) return null;
 
     try {
-      if (source == ImageSource.camera) {
-        await _permChannel.invokeMethod('allowCamera');
-      }
       final picker = ImagePicker();
       final file = await picker.pickImage(
         source: source,
@@ -330,19 +324,10 @@ class _AppRootState extends State<AppRoot> {
         maxWidth: 1920,
         maxHeight: 1920,
       );
-      if (source == ImageSource.camera) {
-        await _permChannel.invokeMethod('blockCamera');
-      }
       if (file == null) return null;
       final bytes = await file.readAsBytes();
-      final b64 = base64Encode(bytes);
-      return 'data:image/jpeg;base64,$b64';
+      return 'data:image/jpeg;base64,${base64Encode(bytes)}';
     } catch (_) {
-      if (source == ImageSource.camera) {
-        try {
-          await _permChannel.invokeMethod('blockCamera');
-        } catch (_) {}
-      }
       return null;
     }
   }
@@ -381,6 +366,7 @@ class _AppRootState extends State<AppRoot> {
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
                     mediaPlaybackRequiresUserGesture: true,
+                    useOnPermissionRequest: true,
                     allowFileAccessFromFileURLs: false,
                     allowUniversalAccessFromFileURLs: false,
                     useHybridComposition: true,
@@ -593,18 +579,4 @@ class _ErrorWidget extends StatelessWidget {
               ElevatedButton.icon(
                 onPressed: onRetry,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A6FFF),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
+            
