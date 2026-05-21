@@ -6,132 +6,32 @@ import android.os.Build
 import android.os.Bundle
 import android.webkit.WebView
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.result.ActivityResultRegistry
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
-import androidx.core.app.ActivityOptionsCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
-import io.flutter.plugin.common.PluginRegistry
 
 class MainActivity : FlutterActivity() {
 
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
 
-    companion object {
-        @Volatile var cameraAllowed = false
-    }
-
-    private val CAMERA_PERMS = setOf(
-        Manifest.permission.CAMERA,
-        Manifest.permission.RECORD_AUDIO,
-        Manifest.permission.MODIFY_AUDIO_SETTINGS
-    )
-
-    private val blockedRegistry = object : ActivityResultRegistry() {
-        override fun <I, O> onLaunch(
-            requestCode: Int,
-            contract: androidx.activity.result.contract.ActivityResultContract<I, O>,
-            input: I,
-            options: ActivityOptionsCompat?
-        ) {
-            if (!cameraAllowed) {
-                when (contract) {
-                    is ActivityResultContracts.RequestPermission -> {
-                        val perm = input as? String
-                        if (perm != null && perm in CAMERA_PERMS) {
-                            @Suppress("UNCHECKED_CAST")
-                            dispatchResult(requestCode, false as O)
-                            return
-                        }
-                    }
-                    is ActivityResultContracts.RequestMultiplePermissions -> {
-                        @Suppress("UNCHECKED_CAST")
-                        val perms = input as? Array<String> ?: emptyArray()
-                        if (perms.any { it in CAMERA_PERMS }) {
-                            val result = perms.associateWith { it !in CAMERA_PERMS }
-                            @Suppress("UNCHECKED_CAST")
-                            dispatchResult(requestCode, result as O)
-                            return
-                        }
-                    }
-                }
-            }
-            super.onLaunch(requestCode, contract, input, options)
-        }
-    }
-
-    override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
-
-    override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        if (!cameraAllowed && permissions.any { it in CAMERA_PERMS }) {
-            onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                IntArray(permissions.size) { i ->
-                    if (permissions[i] in CAMERA_PERMS)
-                        PackageManager.PERMISSION_DENIED
-                    else
-                        PackageManager.PERMISSION_GRANTED
-                }
-            )
-            return
-        }
-        super.requestPermissions(permissions, requestCode)
-    }
-
-    override fun requestPermissions(
-        permissions: Array<String>,
-        requestCode: Int,
-        resultCallback: PluginRegistry.RequestPermissionsResultListener
-    ) {
-        if (!cameraAllowed && permissions.any { it in CAMERA_PERMS }) {
-            resultCallback.onRequestPermissionsResult(
-                requestCode,
-                permissions,
-                IntArray(permissions.size) { i ->
-                    if (permissions[i] in CAMERA_PERMS)
-                        PackageManager.PERMISSION_DENIED
-                    else
-                        PackageManager.PERMISSION_GRANTED
-                }
-            )
-            return
-        }
-        super.requestPermissions(permissions, requestCode, resultCallback)
-    }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
-        cameraAllowed = false
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
-        // ❌ BURASI KALDIRILDI - Açılışta bildirim izni artık istenmiyor
-        // requestNotificationPermission()
-    }
-
-    override fun onStart() {
-        super.onStart()
-        cameraAllowed = false
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
             .setMethodCallHandler { call, result ->
                 when (call.method) {
                     "setAppReady" -> result.success(true)
-                    "allowCamera" -> {
-                        cameraAllowed = true
-                        result.success(true)
-                    }
-                    "blockCamera" -> {
-                        cameraAllowed = false
-                        result.success(true)
-                    }
+                    "allowCamera" -> result.success(true)
+                    "blockCamera" -> result.success(true)
                     "requestNotificationPermission" -> {
                         requestNotificationPermission()
                         result.success(true)
