@@ -133,6 +133,7 @@ void main() async {
 
 class BTCMarketProApp extends StatelessWidget {
   const BTCMarketProApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -153,6 +154,7 @@ class BTCMarketProApp extends StatelessWidget {
 
 class AppRoot extends StatefulWidget {
   const AppRoot({super.key});
+
   @override
   State<AppRoot> createState() => _AppRootState();
 }
@@ -276,6 +278,7 @@ class _AppRootState extends State<AppRoot> {
     super.dispose();
   }
 
+  // GÜNCELLENEN VE İZİN PENCERESİNİ SADECE SEÇİM YAPILDIĞINDA TETİKLEYEN FONKSİYON
   Future<String?> _pickImageWithSource() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -318,26 +321,34 @@ class _AppRootState extends State<AppRoot> {
     if (source == null) return null;
 
     try {
+      final picker = ImagePicker();
+      
+      // Native kanala izin açma emrini sadece kullanıcı kamerayı tıkladıysa gönderiyoruz
       if (source == ImageSource.camera) {
         await _permChannel.invokeMethod('allowCamera');
       }
-      final picker = ImagePicker();
+      
+      // İzin isteme uyarısı tam burada, bu fonksiyon çağrıldığında tetiklenecek
       final file = await picker.pickImage(
         source: source,
         imageQuality: 85,
         maxWidth: 1920,
         maxHeight: 1920,
       );
+      
       if (source == ImageSource.camera) {
         await _permChannel.invokeMethod('blockCamera');
       }
+      
       if (file == null) return null;
       final bytes = await file.readAsBytes();
       final b64 = base64Encode(bytes);
       return 'data:image/jpeg;base64,$b64';
     } catch (_) {
       if (source == ImageSource.camera) {
-        try { await _permChannel.invokeMethod('blockCamera'); } catch (_) {}
+        try { 
+          await _permChannel.invokeMethod('blockCamera');
+        } catch (_) {}
       }
       return null;
     }
