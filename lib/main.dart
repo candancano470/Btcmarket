@@ -59,23 +59,40 @@ bool _isExternalUrl(String url) {
   return true;
 }
 
+// WebRTC + getUserMedia tamamen öldürülüyor
 const String _filePickerScript = r'''
 (function() {
+  // WebRTC komple kapat
+  try { window.RTCPeerConnection = undefined; } catch(e) {}
+  try { window.webkitRTCPeerConnection = undefined; } catch(e) {}
+  try { window.mozRTCPeerConnection = undefined; } catch(e) {}
+  try { window.RTCIceCandidate = undefined; } catch(e) {}
+  try { window.RTCSessionDescription = undefined; } catch(e) {}
+
+  // mediaDevices komple kapat
   try {
-    if (navigator.mediaDevices) {
-      navigator.mediaDevices.getUserMedia = function() {
-        return Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
-      };
-      Object.defineProperty(navigator.mediaDevices, 'getUserMedia', {
-        writable: false, configurable: false
-      });
-    }
+    Object.defineProperty(navigator, 'mediaDevices', {
+      get: function() {
+        return {
+          getUserMedia: function() {
+            return Promise.reject(new DOMException('Permission denied', 'NotAllowedError'));
+          },
+          enumerateDevices: function() { return Promise.resolve([]); },
+          getSupportedConstraints: function() { return {}; }
+        };
+      },
+      configurable: false
+    });
+  } catch(e) {}
+
+  try {
     navigator.getUserMedia = function(c, s, e) {
       if (e) e(new DOMException('Permission denied', 'NotAllowedError'));
     };
     window.getUserMedia = navigator.getUserMedia;
   } catch(e) {}
 
+  // File input — resim yükleme Flutter'a yönlendir
   var _origClick = HTMLInputElement.prototype.click;
   HTMLInputElement.prototype.click = function() {
     var el = this;
@@ -272,6 +289,7 @@ class _AppRootState extends State<AppRoot> {
     super.dispose();
   }
 
+  // Kullanıcı resim yüklerken — kamera izni sadece burada açılır
   Future<String?> _pickImageWithSource() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -326,6 +344,11 @@ class _AppRootState extends State<AppRoot> {
     if (source == null) return null;
 
     try {
+      // Kamera seçildiyse bloğu kaldır → izin sorulsun → bitince tekrar kapat
+      if (source == ImageSource.camera) {
+        await _permChannel.invokeMethod('allowCamera');
+      }
+
       final picker = ImagePicker();
       final file = await picker.pickImage(
         source: source,
@@ -333,11 +356,21 @@ class _AppRootState extends State<AppRoot> {
         maxWidth: 1920,
         maxHeight: 1920,
       );
+
+      if (source == ImageSource.camera) {
+        await _permChannel.invokeMethod('blockCamera');
+      }
+
       if (file == null) return null;
       final bytes = await file.readAsBytes();
       final b64 = base64Encode(bytes);
       return 'data:image/jpeg;base64,$b64';
     } catch (_) {
+      if (source == ImageSource.camera) {
+        try {
+          await _permChannel.invokeMethod('blockCamera');
+        } catch (_) {}
+      }
       return null;
     }
   }
@@ -560,43 +593,4 @@ class _NoInternetWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ErrorWidget extends StatelessWidget {
-  final VoidCallback onRetry;
-  const _ErrorWidget({required this.onRetry});
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: const Color(0xFF071330),
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 32),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.error_outline_rounded,
-                size: 72,
-                color: Colors.redAccent,
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Page Failed to Load',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Something went wrong. Please try again.',
-                textAlign:
+              
