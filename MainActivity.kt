@@ -29,7 +29,6 @@ class MainActivity : FlutterActivity() {
             .setMethodCallHandler { call, result ->
                 when (call.method) {
 
-                    // Kullanıcı kamera seçtiğinde çağrılır
                     "allowCamera" -> {
                         if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)
                             != PackageManager.PERMISSION_GRANTED
@@ -43,18 +42,15 @@ class MainActivity : FlutterActivity() {
                         result.success(true)
                     }
 
-                    // Kamera işlemi bitti
                     "blockCamera" -> {
                         result.success(true)
                     }
 
-                    // WebView yüklendi — bildirim iznini şimdi sor
                     "setAppReady" -> {
                         requestNotificationPermission()
                         result.success(true)
                     }
 
-                    // main.dart'tan çağrılır ama setAppReady ile handle ediliyor
                     "requestNotificationPermission" -> {
                         requestNotificationPermission()
                         result.success(true)
