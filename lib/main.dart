@@ -275,6 +275,21 @@ class _AppRootState extends State<AppRoot> {
     super.dispose();
   }
 
+  Future<bool> _requestCameraPermissionIfNeeded() async {
+    try {
+      final hasPermission =
+          await _permChannel.invokeMethod<bool>('checkPermissions') ?? false;
+      if (!hasPermission) {
+        await _permChannel.invokeMethod('requestPermissions');
+        await Future.delayed(const Duration(milliseconds: 800));
+        return await _permChannel.invokeMethod<bool>('checkPermissions') ?? false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<String?> _pickImageWithSource() async {
     final source = await showModalBottomSheet<ImageSource>(
       context: context,
@@ -315,6 +330,12 @@ class _AppRootState extends State<AppRoot> {
     );
 
     if (source == null) return null;
+
+    // Kamera seçildiyse sadece o an izin iste
+    if (source == ImageSource.camera) {
+      final granted = await _requestCameraPermissionIfNeeded();
+      if (!granted) return null;
+    }
 
     try {
       final picker = ImagePicker();
@@ -393,7 +414,8 @@ class _AppRootState extends State<AppRoot> {
                     if (url.isEmpty) return NavigationActionPolicy.ALLOW;
                     if (_isExternalUrl(url)) {
                       try {
-                        await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+                        await launchUrl(Uri.parse(url),
+                            mode: LaunchMode.externalApplication);
                       } catch (_) {}
                       return NavigationActionPolicy.CANCEL;
                     }
