@@ -21,9 +21,10 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "com.btcmorning.btcmarketpro/permissions"
     private val NOTIF_REQUEST_CODE = 1001
 
-    // Başlangıçta kamera bloke, kullanıcı isteyince açılır
-    @Volatile
-    private var cameraBlocked = true
+    companion object {
+        // Static — uygulama başlar başlamaz false, kullanıcı kamera seçince true
+        @Volatile var cameraAllowed = false
+    }
 
     private val CAMERA_PERMS = setOf(
         Manifest.permission.CAMERA,
@@ -31,6 +32,7 @@ class MainActivity : FlutterActivity() {
         Manifest.permission.MODIFY_AUDIO_SETTINGS
     )
 
+    // Yol 1: ActivityResultLauncher API (flutter_inappwebview bunu kullanır)
     private val blockedRegistry = object : ActivityResultRegistry() {
         override fun <I, O> onLaunch(
             requestCode: Int,
@@ -38,7 +40,7 @@ class MainActivity : FlutterActivity() {
             input: I,
             options: ActivityOptionsCompat?
         ) {
-            if (cameraBlocked) {
+            if (!cameraAllowed) {
                 when (contract) {
                     is ActivityResultContracts.RequestPermission -> {
                         val perm = input as? String
@@ -66,15 +68,9 @@ class MainActivity : FlutterActivity() {
 
     override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
-        super.onCreate(savedInstanceState)
-        WebView.setWebContentsDebuggingEnabled(false)
-        requestNotificationPermission()
-    }
-
+    // Yol 2: Eski requestPermissions API
     override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
-        if (cameraBlocked && permissions.any { it in CAMERA_PERMS }) {
+        if (!cameraAllowed && permissions.any { it in CAMERA_PERMS }) {
             onRequestPermissionsResult(
                 requestCode,
                 permissions,
@@ -90,12 +86,13 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode)
     }
 
+    // Yol 3: Flutter plugin registry API
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
         resultCallback: PluginRegistry.RequestPermissionsResultListener
     ) {
-        if (cameraBlocked && permissions.any { it in CAMERA_PERMS }) {
+        if (!cameraAllowed && permissions.any { it in CAMERA_PERMS }) {
             resultCallback.onRequestPermissionsResult(
                 requestCode,
                 permissions,
@@ -111,6 +108,19 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode, resultCallback)
     }
 
+    override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
+        cameraAllowed = false // Her açılışta sıfırla
+        super.onCreate(savedInstanceState)
+        WebView.setWebContentsDebuggingEnabled(false)
+        requestNotificationPermission()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        cameraAllowed = false
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
@@ -118,13 +128,11 @@ class MainActivity : FlutterActivity() {
                 when (call.method) {
                     "setAppReady" -> result.success(true)
                     "allowCamera" -> {
-                        // Kullanıcı Camera seçti, izin isteğine izin ver
-                        cameraBlocked = false
+                        cameraAllowed = true
                         result.success(true)
                     }
                     "blockCamera" -> {
-                        // İzin alındı/reddedildi, tekrar bloke et
-                        cameraBlocked = true
+                        cameraAllowed = false
                         result.success(true)
                     }
                     "requestNotificationPermission" -> {
