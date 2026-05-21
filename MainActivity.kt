@@ -22,7 +22,6 @@ class MainActivity : FlutterActivity() {
     private val NOTIF_REQUEST_CODE = 1001
 
     companion object {
-        // Static — uygulama başlar başlamaz false, kullanıcı kamera seçince true
         @Volatile var cameraAllowed = false
     }
 
@@ -32,7 +31,6 @@ class MainActivity : FlutterActivity() {
         Manifest.permission.MODIFY_AUDIO_SETTINGS
     )
 
-    // Yol 1: ActivityResultLauncher API (flutter_inappwebview bunu kullanır)
     private val blockedRegistry = object : ActivityResultRegistry() {
         override fun <I, O> onLaunch(
             requestCode: Int,
@@ -68,7 +66,6 @@ class MainActivity : FlutterActivity() {
 
     override fun getActivityResultRegistry(): ActivityResultRegistry = blockedRegistry
 
-    // Yol 2: Eski requestPermissions API
     override fun requestPermissions(permissions: Array<String>, requestCode: Int) {
         if (!cameraAllowed && permissions.any { it in CAMERA_PERMS }) {
             onRequestPermissionsResult(
@@ -86,7 +83,6 @@ class MainActivity : FlutterActivity() {
         super.requestPermissions(permissions, requestCode)
     }
 
-    // Yol 3: Flutter plugin registry API
     override fun requestPermissions(
         permissions: Array<String>,
         requestCode: Int,
@@ -110,10 +106,11 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
-        cameraAllowed = false // Her açılışta sıfırla
+        cameraAllowed = false
         super.onCreate(savedInstanceState)
         WebView.setWebContentsDebuggingEnabled(false)
-        requestNotificationPermission()
+        // ❌ BURASI KALDIRILDI - Açılışta bildirim izni artık istenmiyor
+        // requestNotificationPermission()
     }
 
     override fun onStart() {
