@@ -366,7 +366,6 @@ class _AppRootState extends State<AppRoot> {
                   initialSettings: InAppWebViewSettings(
                     javaScriptEnabled: true,
                     mediaPlaybackRequiresUserGesture: true,
-                    useOnPermissionRequest: true,
                     allowFileAccessFromFileURLs: false,
                     allowUniversalAccessFromFileURLs: false,
                     useHybridComposition: true,
